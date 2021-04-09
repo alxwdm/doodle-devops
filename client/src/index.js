@@ -1,50 +1,135 @@
-import React from "react";
+import React, { Component } from "react";
 import ReactDOM from "react-dom";
 import CanvasDraw from "react-canvas-draw";
+import classNames from "./index.css";
 
 //import { useIsMobileOrTablet } from "./utils/isMobileOrTablet";
 // import "./styles.css";
 
-function App() {
+class App extends Component {
 //  const isMobOrTab = useIsMobileOrTablet();
-
+  state = {
+    color: "#000000",
+    width: 400,
+    height: 400,
+    brushRadius: 10,
+    lazyRadius: 0
+  };
+  render(){
   return (
     <div className="App">
-      <h1>React-Canvas-Draw</h1>
-      <h3>A simple yet powerful canvas-drawing component for React</h3>
-      <iframe
-        title="GitHub link"
-        src="https://ghbtns.com/github-btn.html?user=embiem&repo=react-canvas-draw&type=star&count=true"
-        frameborder="0"
-        scrolling="0"
-        width="160px"
-        height="30px"
-      />
-      <p>
-        <span role="img" aria-label="fingers pointing down">
-          👇👇👇👇
-        </span>{" "}
-        Use your mouse to draw{" "}
-        <span role="img" aria-label="fingers pointing down">
-          👇👇👇👇
-        </span>
-      </p>
+      <p>Try it out! Draw something, hit "Save" and then "Load".</p>
+      <div className={classNames.tools}>
+        <button
+          onClick={() => {
+            localStorage.setItem(
+              "savedDrawing",
+              this.saveableCanvas.getSaveData()
+            );
+          }}
+        >
+          Save
+        </button>
+        <button
+          onClick={() => {
+            this.saveableCanvas.clear();
+          }}
+        >
+          Clear
+        </button>
+        <button
+          onClick={() => {
+            this.saveableCanvas.undo();
+          }}
+        >
+          Undo
+        </button>
+        <div>
+          <label>Width:</label>
+          <input
+            type="number"
+            value={this.state.width}
+            onChange={e =>
+              this.setState({ width: parseInt(e.target.value, 10) })
+            }
+          />
+        </div>
+        <div>
+          <label>Height:</label>
+          <input
+            type="number"
+            value={this.state.height}
+            onChange={e =>
+              this.setState({ height: parseInt(e.target.value, 10) })
+            }
+          />
+        </div>
+        <div>
+          <label>Brush-Radius:</label>
+          <input
+            type="number"
+            value={this.state.brushRadius}
+            onChange={e =>
+              this.setState({ brushRadius: parseInt(e.target.value, 10) })
+            }
+          />
+        </div>
+        <div>
+          <label>Lazy-Radius:</label>
+          <input
+            type="number"
+            value={this.state.lazyRadius}
+            onChange={e =>
+              this.setState({ lazyRadius: parseInt(e.target.value, 10) })
+            }
+          />
+        </div>
+      </div>
       <CanvasDraw
-        style={{
-          boxShadow:
-            "0 13px 27px -5px rgba(50, 50, 93, 0.25),    0 8px 16px -8px rgba(0, 0, 0, 0.3)"
-        }}
+        ref={canvasDraw => (this.saveableCanvas = canvasDraw)}
+        brushColor={this.state.color}
+        brushRadius={this.state.brushRadius}
+        lazyRadius={this.state.lazyRadius}
+        canvasWidth={this.state.width}
+        canvasHeight={this.state.height}
       />
       <p>
-        Like what you see? Play around in{" "}
-        <a href="https://codesandbox.io/s/6lv410914w">this CodeSandbox</a> & see
-        some more{" "}
-        <a href="https://embiem.github.io/react-canvas-draw/">Advanced Demos</a>
-        !
+        The following is a disabled canvas with a hidden grid that we use to
+        load & show your saved drawing.
+        Load what you saved previously by calling `loadSaveData()` on 
+        the component's reference or passing it to the `saveData` prop.
       </p>
+      <button
+        onClick={() => {
+          this.loadableCanvas.loadSaveData(
+            localStorage.getItem("savedDrawing")
+          );
+        }}
+      >
+        Redraw
+      </button>
+      <CanvasDraw
+        disabled
+        hideGrid
+        ref={canvasDraw => (this.loadableCanvas = canvasDraw)}
+        saveData={localStorage.getItem("savedDrawing")}
+      />
+      <p>
+        The saving & loading also takes different dimensions into account.
+        Change the width & height, draw something and save it and then load it
+        into the disabled canvas. It will load your previously saved
+        masterpiece scaled to the current canvas dimensions.
+      </p>
+      <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>
+      Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
+      from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a>
+      </div>
     </div>
   );
+  }
 }
+
+export default App;
 
 const rootElement = document.getElementById("root");
 ReactDOM.render(<App />, rootElement);
