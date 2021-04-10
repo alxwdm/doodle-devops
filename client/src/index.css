@@ -1,0 +1,39 @@
+:root {
+  --yellow: #ffc600;
+  --black: #272727;
+}
+
+html {
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  font-weight: 900;
+  font-size: 16px;
+  color: var(--black);
+}
+
+body {
+  background-image: linear-gradient(110deg, #ffffff, #ffffff);
+  margin: 50px;
+  background-position: fixed;
+}
+
+span {
+  background-color: darkgrey;
+  padding: 0.3rem;
+  font-size: 0.8em;
+  font-family: monospace;
+}
+
+p {
+  line-height: 1.6em;
+}
+
+.tools {
+  display: flex;
+  justify-content: space-between;
+  width: 400px;
+}
+
+input[type=number] {
+  width: 50px;
+}
