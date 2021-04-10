@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, { Component} from "react";
 import ReactDOM from "react-dom";
 import CanvasDraw from "react-canvas-draw";
 import classNames from "./index.css";
@@ -14,12 +14,21 @@ class App extends Component {
     width: 400,
     height: 400,
     brushRadius: 10,
-    lazyRadius: 0
+    lazyRadius: 0,
+    model: null,
+    metadata: null
   };
+
+  url = {
+      model: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/model.json',
+      metadata: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/metadata.json'
+      };
 
   async loadModel(url) {
     try {
       const model = await tf.loadLayersModel(url.model);
+      this.state.model = model;
+      // console.log('Loaded TF model');
       } 
     catch (err) {
     console.log(err);
@@ -29,16 +38,14 @@ class App extends Component {
     try {
       const metadataJson = await fetch(url.metadata);
       const metadata = await metadataJson.json();
+      this.state.metadata = metadata;
+      // console.log('Loaded TF metadata');
      } 
     catch (err) {
       console.log(err);
     }}
 
   render(){
-    const  url = {
-      model: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/model.json',
-      metadata: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/metadata.json'
-      };
   return (
     <div className="App">
       <p>Try it out! Draw something, hit "Save" and then "Load".</p>
@@ -148,7 +155,8 @@ class App extends Component {
       </p>
       <button
         onClick={() => {
-          this.loadModel(url);
+          this.loadModel(this.url);
+          this.loadMetadata(this.url);
         }}
       >
         Load tfjs model
