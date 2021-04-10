@@ -8,7 +8,8 @@
     "react": "16.x",
     "react-canvas-draw": "1.0.0-alpha.10",
     "react-dom": "16.x",
-    "react-scripts": "2.0.3"
+    "react-scripts": "2.0.3",
+    "@tensorflow/tfjs": "^2.0.0"
   },
   "devDependencies": {},
   "scripts": {

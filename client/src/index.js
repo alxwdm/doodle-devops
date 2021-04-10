@@ -2,6 +2,7 @@ import React, { Component } from "react";
 import ReactDOM from "react-dom";
 import CanvasDraw from "react-canvas-draw";
 import classNames from "./index.css";
+import * as tf from "@tensorflow/tfjs";
 
 //import { useIsMobileOrTablet } from "./utils/isMobileOrTablet";
 // import "./styles.css";
@@ -15,7 +16,29 @@ class App extends Component {
     brushRadius: 10,
     lazyRadius: 0
   };
+
+  async loadModel(url) {
+    try {
+      const model = await tf.loadLayersModel(url.model);
+      } 
+    catch (err) {
+    console.log(err);
+    }}
+
+  async loadMetadata(url) {
+    try {
+      const metadataJson = await fetch(url.metadata);
+      const metadata = await metadataJson.json();
+     } 
+    catch (err) {
+      console.log(err);
+    }}
+
   render(){
+    const  url = {
+      model: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/model.json',
+      metadata: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/metadata.json'
+      };
   return (
     <div className="App">
       <p>Try it out! Draw something, hit "Save" and then "Load".</p>
@@ -120,6 +143,16 @@ class App extends Component {
         into the disabled canvas. It will load your previously saved
         masterpiece scaled to the current canvas dimensions.
       </p>
+      <p>
+        Let's try loading a tensorflow.js model!
+      </p>
+      <button
+        onClick={() => {
+          this.loadModel(url);
+        }}
+      >
+        Load tfjs model
+      </button>
       <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>
       Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
       from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a>
