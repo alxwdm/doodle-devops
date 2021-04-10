@@ -16,13 +16,20 @@ class App extends Component {
     brushRadius: 10,
     lazyRadius: 0,
     model: null,
-    metadata: null
+    metadata: null,
+    category_idx: 0
   };
 
   url = {
-      model: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/model.json',
-      metadata: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/metadata.json'
-      };
+    model: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/model.json',
+    metadata: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/metadata.json'
+  };
+
+  categories = [
+    'Cat',
+    'Dog',
+    'Mouse'
+  ]
 
   async loadModel(url) {
     try {
@@ -45,10 +52,19 @@ class App extends Component {
       console.log(err);
     }}
 
+  random_choice() {
+    const new_idx = Math.floor(Math.random()*this.categories.length);
+    this.setState({category_idx: new_idx});
+    //console.log('called random_choice. State is: ', this.state.category_idx);
+  }
+
   render(){
   return (
     <div className="App">
-      <p>Try it out! Draw something, hit "Save" and then "Load".</p>
+      <h1>Doodle DevOps Client</h1>
+      <p>
+        Can you draw a {this.categories[this.state.category_idx]} for me?
+      </p>
       <div className={classNames.tools}>
         <button
           onClick={() => {
@@ -63,6 +79,7 @@ class App extends Component {
         <button
           onClick={() => {
             this.saveableCanvas.clear();
+            this.random_choice();
           }}
         >
           Clear
@@ -104,16 +121,6 @@ class App extends Component {
             }
           />
         </div>
-        <div>
-          <label>Lazy-Radius:</label>
-          <input
-            type="number"
-            value={this.state.lazyRadius}
-            onChange={e =>
-              this.setState({ lazyRadius: parseInt(e.target.value, 10) })
-            }
-          />
-        </div>
       </div>
       <CanvasDraw
         ref={canvasDraw => (this.saveableCanvas = canvasDraw)}
@@ -136,7 +143,7 @@ class App extends Component {
           );
         }}
       >
-        Redraw
+        Predict
       </button>
       <CanvasDraw
         disabled
