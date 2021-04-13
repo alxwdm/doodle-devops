@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import CanvasDraw from "react-canvas-draw";
 import classNames from "./index.css";
 import * as tf from "@tensorflow/tfjs";
+//import * as tfn from "@tensorflow/tfjs-node"
 
 //import { useIsMobileOrTablet } from "./utils/isMobileOrTablet";
 // import "./styles.css";
@@ -17,7 +18,8 @@ class App extends Component {
     lazyRadius: 0,
     model: null,
     metadata: null,
-    category_idx: 0
+    category_idx: 0,
+    predict_idx: false
   };
 
   url = {
@@ -33,9 +35,21 @@ class App extends Component {
 
   async loadModel(url) {
     try {
-      const model = await tf.loadLayersModel(url.model);
+      /*
+      Example Code:
+      - server: https://codesandbox.io/s/upbeat-lumiere-qyeho?file=/src/index.js
+      - client: https://codesandbox.io/s/brave-murdock-ck6of?file=/src/App.js
+      */
+
+      // Load model from express server
+      // via api? net::ERR_NAME_NOT_RESOLVED
+      //const model = await tf.loadLayersModel('http://api/model/model.json');
+      //const model = await tf.loadLayersModel('http://api:4000/model/model.json');
+      //const model = await tf.loadLayersModel('api/model/model.json');
+      // via localhost --> works
+      const model = await tf.loadLayersModel('http://localhost:4000/model/model.json');
       this.state.model = model;
-      // console.log('Loaded TF model');
+      console.log('Loaded TF model');
       } 
     catch (err) {
     console.log(err);
@@ -56,6 +70,16 @@ class App extends Component {
     const new_idx = Math.floor(Math.random()*this.categories.length);
     this.setState({category_idx: new_idx});
     //console.log('called random_choice. State is: ', this.state.category_idx);
+  }
+
+  dummy_predict() {
+    const xs = tf.zeros([1, 28, 28, 1]);
+    const result = this.state.model.predict(xs).squeeze();
+    const tf_idx = result.argMax(0);
+    this.setState({predict_idx: tf_idx.dataSync()});
+    //console.log(result.print(true));
+    //console.log(tf_idx.print());
+    //console.log(this.categories[this.state.predict_idx]);
   }
 
   render(){
@@ -168,6 +192,19 @@ class App extends Component {
       >
         Load tfjs model
       </button>
+      <p>
+        Dummy interference with loaded model:
+      </p>
+      <button
+        onClick={() => {
+          this.dummy_predict()
+        }}
+      >
+        tfjs predict
+      </button>
+      <p>
+        For the dummy interference, I have predicted a {this.categories[this.state.predict_idx]}!
+      </p>
       <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>
       Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
       from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a>
