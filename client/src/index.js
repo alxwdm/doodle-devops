@@ -22,16 +22,13 @@ class App extends Component {
     predict_idx: false
   };
 
-  url = {
-    model: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/model.json',
-    metadata: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/metadata.json'
-  };
-
   categories = [
     'Cat',
     'Dog',
     'Mouse'
-  ]
+  ];
+
+  img_test = null;
 
   async loadModel(url) {
     try {
@@ -46,24 +43,13 @@ class App extends Component {
       //const model = await tf.loadLayersModel('http://api/model/model.json');
       //const model = await tf.loadLayersModel('http://api:4000/model/model.json');
       //const model = await tf.loadLayersModel('api/model/model.json');
-      // via localhost --> works
+      // via localhost --> works TODO fix api access
       const model = await tf.loadLayersModel('http://localhost:4000/model/model.json');
       this.state.model = model;
       console.log('Loaded TF model');
       } 
     catch (err) {
     console.log(err);
-    }}
-
-  async loadMetadata(url) {
-    try {
-      const metadataJson = await fetch(url.metadata);
-      const metadata = await metadataJson.json();
-      this.state.metadata = metadata;
-      // console.log('Loaded TF metadata');
-     } 
-    catch (err) {
-      console.log(err);
     }}
 
   random_choice() {
@@ -73,22 +59,61 @@ class App extends Component {
   }
 
   dummy_predict() {
+    // dummy prediction
     const xs = tf.zeros([1, 28, 28, 1]);
     const result = this.state.model.predict(xs).squeeze();
     const tf_idx = result.argMax(0);
     this.setState({predict_idx: tf_idx.dataSync()});
-    //console.log(result.print(true));
-    //console.log(tf_idx.print());
-    //console.log(this.categories[this.state.predict_idx]);
+    // output prediction to console
+    console.log(result.print(true));
+    console.log(tf_idx.print());
+    console.log(this.categories[this.state.predict_idx]);
+  }
+
+  async canvas_to_tensor(imgloaded_callback) {
+    var img = new Image();
+    img.src = this.rescaledCanvas.canvasContainer.children[1].toDataURL();
+    img.width = 28;
+    img.height = 28;
+    const model = this.state.model;
+    img.onload = () => {
+      var tf_img = tf.browser.fromPixels(img, 4);
+      tf_img = tf_img.slice([0, 0, 3], [-1, -1, -1]);
+      const pred_idx_res = imgloaded_callback(model, tf_img);
+    }
+  }
+
+  model_predict(tf_img) {
+    // replace this with canvas_to_tensor
+    //var tf_img = tf.zeros([28, 28, 1]);
+    // predict on image tensor
+    tf_img = tf.expandDims(tf_img, 0);
+    const pred_logits = this.state.model.predict(tf_img).squeeze();
+    const pred_idx = pred_logits.argMax(0);
+    // output prediction to console
+    console.log(pred_logits.print(true));
+    console.log(pred_idx.print());   
+    this.setState({predict_idx: pred_idx.dataSync()});
+    return pred_idx.dataSync();
+  }
+
+  draw_image() {
+    var img = new Image();
+    img.src = this.rescaledCanvas.canvasContainer.children[1].toDataURL();
+    img.width = 28;
+    img.height = 28;   
+    document.getElementById("testcanvas").src = img.src
   }
 
   render(){
   return (
     <div className="App">
       <h1>Doodle DevOps Client</h1>
+
       <p>
         Can you draw a {this.categories[this.state.category_idx]} for me?
       </p>
+
       <div className={classNames.tools}>
         <button
           onClick={() => {
@@ -146,6 +171,7 @@ class App extends Component {
           />
         </div>
       </div>
+
       <CanvasDraw
         ref={canvasDraw => (this.saveableCanvas = canvasDraw)}
         brushColor={this.state.color}
@@ -154,6 +180,7 @@ class App extends Component {
         canvasWidth={this.state.width}
         canvasHeight={this.state.height}
       />
+
       <p>
         The following is a disabled canvas with a hidden grid that we use to
         load & show your saved drawing.
@@ -165,46 +192,96 @@ class App extends Component {
           this.loadableCanvas.loadSaveData(
             localStorage.getItem("savedDrawing")
           );
+         this.rescaledCanvas.loadSaveData(
+            localStorage.getItem("savedDrawing")
+          );
         }}
       >
         Predict
       </button>
+
       <CanvasDraw
-        disabled
-        hideGrid
         ref={canvasDraw => (this.loadableCanvas = canvasDraw)}
+        brushColor={this.state.color}
+        brushRadius={this.state.brushRadius}
+        lazyRadius={this.state.lazyRadius}
+        canvasWidth={this.state.width}
+        canvasHeight={this.state.height}
         saveData={localStorage.getItem("savedDrawing")}
+        disabled={true}
+        hideGrid={true}
       />
-      <p>
-        The saving & loading also takes different dimensions into account.
-        Change the width & height, draw something and save it and then load it
-        into the disabled canvas. It will load your previously saved
-        masterpiece scaled to the current canvas dimensions.
-      </p>
+
+      <CanvasDraw 
+        ref={canvasDraw => (this.rescaledCanvas = canvasDraw)}
+        brushColor={this.state.color}
+        brushRadius={1}
+        lazyRadius={0}
+        canvasWidth={28}
+        canvasHeight={28}
+        saveData={localStorage.getItem("savedDrawing")}
+        disabled={true}
+        //style={{"display": "none"}}
+      />
+
       <p>
         Let's try loading a tensorflow.js model!
       </p>
       <button
         onClick={() => {
           this.loadModel(this.url);
-          this.loadMetadata(this.url);
         }}
       >
         Load tfjs model
       </button>
+
       <p>
         Dummy interference with loaded model:
       </p>
       <button
         onClick={() => {
-          this.dummy_predict()
+          // TODO check if model is loaded
+          //this.dummy_predict()
+          console.log('Predicting...');
+          const pred_idx_ret = this.canvas_to_tensor(
+            function(model, tf_img) {
+              //console.log(tf_img.print());
+              console.log('i am inside callback fn');
+              // predict on image tensor
+              tf_img = tf.expandDims(tf_img, 0);
+              const pred_logits = model.predict(tf_img).squeeze();
+              const pred_idx_tf = pred_logits.argMax(0);
+              // output prediction to console -- tensors
+              //console.log(pred_logits.print(true));
+              //console.log(pred_idx_tf.print(true));   
+              // output prediction to console - array
+              const pred_idx = pred_idx_tf.dataSync();
+              console.log('Prediction is: ' + pred_idx[0]);
+              // TODO set state inside this fn without error
+              //this.setState({predict_idx: pred_idx});
+              return pred_idx;
+            }
+            );
+          console.log('outside callback fn');
         }}
       >
         tfjs predict
       </button>
+
       <p>
         For the dummy interference, I have predicted a {this.categories[this.state.predict_idx]}!
       </p>
+
+      <img id="testcanvas" src="" />
+      <button
+        onClick={() => {
+          // Draw image saved from rescaledCanvas
+          this.draw_image()
+        }}
+      >
+        draw image
+      </button>
+
       <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>
       Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
       from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a>
