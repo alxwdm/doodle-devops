@@ -1,48 +1,41 @@
-/**
- * This is the backend for the React app on:
- * https://codesandbox.io/s/brave-murdock-ck6of?file=/src/App.js
- */
+// Express App Setup
 var express = require("express");
 var path = require("path");
 var app = express();
 var cors = require("cors");
 app.use(cors());
 
+// Port Setup
 const port = 4000;
 
+// Postgres Client Setup
+const keys = require('./keys');
+const { Pool } = require('pg');
+const pgClient = new Pool({
+  user: keys.pgUser,
+  host: keys.pgHost,
+  database: keys.pgDatabase,
+  password: keys.pgPassword,
+  port: keys.pgPort,
+});
+
+pgClient.on('connect', () => {
+  pgClient
+    .query('CREATE TABLE IF NOT EXISTS values (number INT)')
+    .catch((err) => console.log(err));
+});
+
 /*
-var corsOptions = {
-  origin: "https://ck6of.csb.app/",
-  optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
-};
+ Code example for serving a tfjs model into a React App:
+ * https://codesandbox.io/s/brave-murdock-ck6of?file=/src/App.js
 */
 
 app.use(express.static(path.join(__dirname, "build")));
 
-//Valerie
 app.use('/model', express.static('tfjs_model'));
 
-/*
-app.use(
-  "/model",
-  express.static(path.join(__dirname, "tfjs_model/model.json"))
-);
+// TODO: PG communication
 
-// this is required to get access to the shards
-app.use(
-  "/model",
-  express.static(path.join(__dirname, "tfjs_model/"))
-);
-*/
-/*
-app.get("/ping", cors(corsOptions), function(req, res) {
-  return res.send("pong");
-});
-
-app.get("/", cors(corsOptions), function(req, res) {
-  res.send("Visit app at: https://ck6of.csb.app/");
-});
-*/
 
 app.listen(port, () =>
   console.log('Express server listening at http://localhost:${port}')

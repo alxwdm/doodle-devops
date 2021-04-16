@@ -3,39 +3,36 @@ import ReactDOM from "react-dom";
 import CanvasDraw from "react-canvas-draw";
 import classNames from "./index.css";
 import * as tf from "@tensorflow/tfjs";
-//import * as tfn from "@tensorflow/tfjs-node"
 
-//import { useIsMobileOrTablet } from "./utils/isMobileOrTablet";
 // import "./styles.css";
 
 class App extends Component {
-//  const isMobOrTab = useIsMobileOrTablet();
   state = {
     color: "#000000",
     width: 400,
     height: 400,
-    brushRadius: 10,
+    brushRadius: 8,
     lazyRadius: 0,
     model: null,
     metadata: null,
     category_idx: 0,
-    predict_idx: false
-  };
-
-  url = {
-    model: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/model.json',
-    metadata: 'https://storage.googleapis.com/tfjs-models/tfjs/sentiment_cnn_v1/metadata.json'
+    predict_idx: false,
+    predict_valid: false
   };
 
   categories = [
-    'Cat',
-    'Dog',
-    'Mouse'
-  ]
+    'cat',
+    'dog',
+    'mouse'
+  ];
 
-  async loadModel(url) {
+  img_test = null;
+
+  async loadModel() {
     try {
       /*
+      Loads a TensorFlow json model from a server.
+
       Example Code:
       - server: https://codesandbox.io/s/upbeat-lumiere-qyeho?file=/src/index.js
       - client: https://codesandbox.io/s/brave-murdock-ck6of?file=/src/App.js
@@ -46,7 +43,7 @@ class App extends Component {
       //const model = await tf.loadLayersModel('http://api/model/model.json');
       //const model = await tf.loadLayersModel('http://api:4000/model/model.json');
       //const model = await tf.loadLayersModel('api/model/model.json');
-      // via localhost --> works
+      // via localhost --> works TODO fix express server connection
       const model = await tf.loadLayersModel('http://localhost:4000/model/model.json');
       this.state.model = model;
       console.log('Loaded TF model');
@@ -55,55 +52,108 @@ class App extends Component {
     console.log(err);
     }}
 
-  async loadMetadata(url) {
-    try {
-      const metadataJson = await fetch(url.metadata);
-      const metadata = await metadataJson.json();
-      this.state.metadata = metadata;
-      // console.log('Loaded TF metadata');
-     } 
-    catch (err) {
-      console.log(err);
-    }}
-
   random_choice() {
+    /* 
+    Selects a random category
+    */
     const new_idx = Math.floor(Math.random()*this.categories.length);
     this.setState({category_idx: new_idx});
-    //console.log('called random_choice. State is: ', this.state.category_idx);
   }
 
   dummy_predict() {
+    /*
+    Makes a dummy prediction on empty tensor
+    */
     const xs = tf.zeros([1, 28, 28, 1]);
     const result = this.state.model.predict(xs).squeeze();
     const tf_idx = result.argMax(0);
     this.setState({predict_idx: tf_idx.dataSync()});
-    //console.log(result.print(true));
-    //console.log(tf_idx.print());
-    //console.log(this.categories[this.state.predict_idx]);
+    // output prediction to console
+    console.log(result.print(true));
+    console.log(tf_idx.print());
+    console.log(this.categories[this.state.predict_idx]);
   }
+
+  async canvas_to_tensor(imgloaded_callback) {
+    /*
+    Gets canvas data and converts it into a tensor (via an Image).
+    Also rescales the image data to (28,28) and reduces the dimensions.
+    */
+    var img = new Image();
+    img.src = this.loadableCanvas.canvasContainer.children[1].toDataURL();
+    img.width = 400;
+    img.height = 400;
+    const model = this.state.model;
+    img.onload = () => {
+      var tf_img = tf.browser.fromPixels(img, 4);
+      tf_img = tf.image.resizeBilinear(tf_img, [28, 28]);
+      tf_img = tf_img.slice([0, 0, 3], [-1, -1, -1]);
+      imgloaded_callback(model, tf_img);
+    }
+  }
+
+  async model_predict() {
+    /*
+    Predicts on canvas data.
+    */
+    console.log('Predicting...');
+    this.canvas_to_tensor(
+      (model, tf_img) => {
+        // predict on image tensor
+        tf_img = tf.expandDims(tf_img, 0);
+        const pred_logits = model.predict(tf_img).squeeze();
+        const pred_idx_tf = pred_logits.argMax(0);
+        // output prediction to console -- tensors
+        //console.log(pred_logits.print(true));
+        //console.log(pred_idx_tf.print(true));   
+        // output prediction to console - array
+        const pred_idx = pred_idx_tf.dataSync();
+        this.setState({predict_idx: pred_idx});
+        this.setState({predict_valid: true});
+        // log prediction output to console
+        console.log('Prediction is: ' + pred_idx[0]);
+        console.log(this.categories[this.state.predict_idx]);
+        return pred_idx;
+      }
+      );
+  }
+
+/*
+  draw_image() {
+    var img = new Image();
+    img.src = this.rescaledCanvas.canvasContainer.children[1].toDataURL();
+    img.width = 28;
+    img.height = 28;   
+    document.getElementById("testcanvas").src = img.src
+  }
+*/
 
   render(){
   return (
     <div className="App">
-      <h1>Doodle DevOps Client</h1>
+      <h1>Cat, dog or mouse - can an AI recognize your drawing?</h1>
+
       <p>
         Can you draw a {this.categories[this.state.category_idx]} for me?
       </p>
+
+      <button
+        onClick={() => {
+          this.saveableCanvas.clear();
+          this.random_choice();
+        }}
+      >
+        Give me something else!
+      </button>
+
+      <p>
+
+      </p>
+
       <div className={classNames.tools}>
         <button
           onClick={() => {
-            localStorage.setItem(
-              "savedDrawing",
-              this.saveableCanvas.getSaveData()
-            );
-          }}
-        >
-          Save
-        </button>
-        <button
-          onClick={() => {
             this.saveableCanvas.clear();
-            this.random_choice();
           }}
         >
           Clear
@@ -115,37 +165,11 @@ class App extends Component {
         >
           Undo
         </button>
-        <div>
-          <label>Width:</label>
-          <input
-            type="number"
-            value={this.state.width}
-            onChange={e =>
-              this.setState({ width: parseInt(e.target.value, 10) })
-            }
-          />
-        </div>
-        <div>
-          <label>Height:</label>
-          <input
-            type="number"
-            value={this.state.height}
-            onChange={e =>
-              this.setState({ height: parseInt(e.target.value, 10) })
-            }
-          />
-        </div>
-        <div>
-          <label>Brush-Radius:</label>
-          <input
-            type="number"
-            value={this.state.brushRadius}
-            onChange={e =>
-              this.setState({ brushRadius: parseInt(e.target.value, 10) })
-            }
-          />
-        </div>
+        <p>
+        
+        </p>
       </div>
+
       <CanvasDraw
         ref={canvasDraw => (this.saveableCanvas = canvasDraw)}
         brushColor={this.state.color}
@@ -154,57 +178,59 @@ class App extends Component {
         canvasWidth={this.state.width}
         canvasHeight={this.state.height}
       />
+
       <p>
-        The following is a disabled canvas with a hidden grid that we use to
-        load & show your saved drawing.
-        Load what you saved previously by calling `loadSaveData()` on 
-        the component's reference or passing it to the `saveData` prop.
+      
       </p>
+
       <button
-        onClick={() => {
-          this.loadableCanvas.loadSaveData(
+        onClick={ async () => {
+        if (this.state.model == null) {
+              await this.loadModel();
+            }
+        await localStorage.setItem(
+              "savedDrawing",
+              this.saveableCanvas.getSaveData()
+            );
+        await this.loadableCanvas.loadSaveData(
             localStorage.getItem("savedDrawing")
-          );
+          );       
         }}
       >
-        Predict
+        Done drawing.
       </button>
+
+      <p>
+
+        Ready? Let me see what you have drawn here...
+      </p>
+
+      <button
+        onClick={ async () => { 
+        if (this.state.model == null) {
+              await this.loadModel();
+            }
+          this.model_predict();      
+        }}
+      >
+        Make a prediction!
+      </button>
+
       <CanvasDraw
-        disabled
-        hideGrid
         ref={canvasDraw => (this.loadableCanvas = canvasDraw)}
+        brushColor={this.state.color}
+        brushRadius={this.state.brushRadius}
+        lazyRadius={this.state.lazyRadius}
+        canvasWidth={this.state.width}
+        canvasHeight={this.state.height}
         saveData={localStorage.getItem("savedDrawing")}
+        disabled={true}
+        hideGrid={true}
       />
       <p>
-        The saving & loading also takes different dimensions into account.
-        Change the width & height, draw something and save it and then load it
-        into the disabled canvas. It will load your previously saved
-        masterpiece scaled to the current canvas dimensions.
+        This is a {this.categories[this.state.predict_idx]}!
       </p>
-      <p>
-        Let's try loading a tensorflow.js model!
-      </p>
-      <button
-        onClick={() => {
-          this.loadModel(this.url);
-          this.loadMetadata(this.url);
-        }}
-      >
-        Load tfjs model
-      </button>
-      <p>
-        Dummy interference with loaded model:
-      </p>
-      <button
-        onClick={() => {
-          this.dummy_predict()
-        }}
-      >
-        tfjs predict
-      </button>
-      <p>
-        For the dummy interference, I have predicted a {this.categories[this.state.predict_idx]}!
-      </p>
+
       <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>
       Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
       from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a>
