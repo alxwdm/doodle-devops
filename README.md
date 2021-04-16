@@ -7,7 +7,7 @@ The key challenge is: Can you draw a cat, dog or mouse so that an AI can recogni
 The following figure shows the architecture of the app. In production, an **nginx** webserver is used to interact with the user. The client runs on a **React.js** framework and the predictions come from a **TensorFlow.js** model. The latest version of the model is provided by an **Express.js** server, which additionally saves the user's interactions in a **PostgreSQL** database. Initially, a pre-trained model is provided using the original dataset. The pre-training is done inside a **Google colab** notebook. Later, the database is used for delta-training on a cloud computing platform, such as **AWS**, to increase the model's performance the more the app is used.
 
 <p align="center">
-<img src="https://github.com/alxwdm/doodle-devops/blob/main/doc/multi-services_prod.png" width="500">
+<img src="https://github.com/alxwdm/doodle-devops/blob/main/doc/multi-services_prod.png" width="700">
 </p>
 
 Note: Currently, a node development server is used instead of nginx.
@@ -40,7 +40,7 @@ Here is how you get the data used for pre-training:
 The following image shows samples of the drawings for each category from the original dataset:
 
 <p align="center">
-<img src="https://github.com/alxwdm/doodle-devops/blob/main/doc/categories_examples.png" width="700">
+<img src="https://github.com/alxwdm/doodle-devops/blob/main/doc/categories_examples.png" width="500">
 </p>
 
 A few preprocessing steps, such as normalization and reshaping, are neccessary in order to train the model. I have used the **tf.data API** for this, which makes shuffling and batching the data easy and integrates neatly into the TensorFlow world. This is how it is done:
