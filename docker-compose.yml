@@ -10,6 +10,10 @@ services:
     volumes:
       - /app/node_modules
       - ./client:/app
+  postgres:
+    image: 'postgres:latest'
+    environment:
+      - POSTGRES_PASSWORD=postgres_password
   api:
     build:
       dockerfile: Dockerfile.dev
@@ -19,3 +23,9 @@ services:
     volumes:
       - /app/node_modules
       - ./server:/app
+    environment:
+      - PGUSER=postgres
+      - PGHOST=postgres
+      - PGDATABASE=postgres
+      - PGPASSWORD=postgres_password
+      - PGPORT=5432
