@@ -9,6 +9,7 @@
     "react-canvas-draw": "1.0.0-alpha.10",
     "react-dom": "16.x",
     "react-scripts": "2.0.3",
+    "@testing-library/react": "^9.5.0",
     "@tensorflow/tfjs": "^2.0.0",
     "@tensorflow/tfjs-node": "^2.0.0"
   },
