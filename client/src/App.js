@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import CanvasDraw from "react-canvas-draw";
 import classNames from "./index.css";
 import * as tf from "@tensorflow/tfjs";
+import * as axios from "axios";
 
 // import "./styles.css";
 
@@ -39,12 +40,10 @@ class App extends Component {
       */
 
       // Load model from express server
-      // via api? net::ERR_NAME_NOT_RESOLVED
-      //const model = await tf.loadLayersModel('http://api/model/model.json');
-      //const model = await tf.loadLayersModel('http://api:4000/model/model.json');
-      //const model = await tf.loadLayersModel('api/model/model.json');
-      // via localhost --> works TODO fix express server connection
-      const model = await tf.loadLayersModel('http://localhost:4000/model/model.json');
+      const model = await tf.loadLayersModel('api/model/model.json');
+      // w/o nginx: load via localhost
+      //const model = await tf.loadLayersModel('http://localhost:4000/model/model.json');
+
       this.state.model = model;
       console.log('Loaded TF model');
       } 
@@ -117,6 +116,13 @@ class App extends Component {
       }
       );
   }
+
+  handleTest = async () => {
+    await axios.post('/api/values', {
+      index: -1,
+    });
+    console.log('send idx to api')
+  };
 
 /*
   draw_image() {
@@ -230,6 +236,14 @@ class App extends Component {
       <p>
         This is a {this.categories[this.state.predict_idx]}!
       </p>
+
+      <button
+        onClick={ async () => { 
+          this.handleTest()
+        }}
+      >
+        This is a test!
+      </button>
 
       <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>
       Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}

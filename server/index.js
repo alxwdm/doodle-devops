@@ -1,9 +1,12 @@
 // Express App Setup
 var express = require("express");
 var path = require("path");
-var app = express();
+const bodyParser = require('body-parser');
 var cors = require("cors");
+
+var app = express();
 app.use(cors());
+app.use(bodyParser.json());
 
 // Port Setup
 const port = 4000;
@@ -25,19 +28,27 @@ pgClient.on('connect', () => {
     .catch((err) => console.log(err));
 });
 
-/*
- Code example for serving a tfjs model into a React App:
- * https://codesandbox.io/s/brave-murdock-ck6of?file=/src/App.js
-*/
+// Express route handlers
 
-app.use(express.static(path.join(__dirname, "build")));
+// static files
+//app.use(express.static(path.join(__dirname, "build")));
+app.use('/api/model', express.static('tfjs_model'));
 
-app.use('/model', express.static('tfjs_model'));
+// POST requests
+app.post('/api/values', (req, res) => {
+  res.send('Hi again');
+  const index = req.body.index;
+  console.log('server here');
+  console.log(index);
+});
+
+// GET requests
+app.get('/api/tests', (req, res) => {
+  res.send('Hi test');
+});
 
 // TODO: PG communication
-
 
 app.listen(port, () =>
   console.log('Express server listening at http://localhost:${port}')
 );
-
