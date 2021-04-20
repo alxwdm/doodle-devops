@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import CanvasDraw from "react-canvas-draw";
 import classNames from "./index.css";
 import * as tf from "@tensorflow/tfjs";
+import * as axios from "axios";
 
 // import "./styles.css";
 
@@ -39,12 +40,10 @@ class App extends Component {
       */
 
       // Load model from express server
-      // via api? net::ERR_NAME_NOT_RESOLVED
-      //const model = await tf.loadLayersModel('http://api/model/model.json');
-      //const model = await tf.loadLayersModel('http://api:4000/model/model.json');
-      //const model = await tf.loadLayersModel('api/model/model.json');
-      // via localhost --> works TODO fix express server connection
-      const model = await tf.loadLayersModel('http://localhost:4000/model/model.json');
+      const model = await tf.loadLayersModel('api/model/model.json');
+      // w/o nginx: load via localhost
+      //const model = await tf.loadLayersModel('http://localhost:4000/model/model.json');
+
       this.state.model = model;
       console.log('Loaded TF model');
       } 
@@ -99,6 +98,10 @@ class App extends Component {
     console.log('Predicting...');
     this.canvas_to_tensor(
       (model, tf_img) => {
+        // retrieve prediction data
+        const data_img = tf_img.dataSync();
+        const data_arr = Array.from(data_img);
+        const cat_idx = this.state.category_idx;
         // predict on image tensor
         tf_img = tf.expandDims(tf_img, 0);
         const pred_logits = model.predict(tf_img).squeeze();
@@ -113,10 +116,28 @@ class App extends Component {
         // log prediction output to console
         console.log('Prediction is: ' + pred_idx[0]);
         console.log(this.categories[this.state.predict_idx]);
+        // send to mdlsvr
+        this.handlePredict(cat_idx, pred_idx[0], data_arr);
         return pred_idx;
       }
       );
   }
+
+  handleTest = async () => {
+    await axios.post('/api/values/test', {
+      index: -1,
+    });
+    console.log('sent test idx to api');
+  };
+
+  handlePredict = async (cat_idx, pred_idx, img) => {
+    await axios.post('/api/predict', {
+      category_idx: cat_idx,
+      predict_idx: pred_idx,
+      data: img
+    });
+    console.log('sent prediction to api');
+  };
 
 /*
   draw_image() {
@@ -231,6 +252,14 @@ class App extends Component {
         This is a {this.categories[this.state.predict_idx]}!
       </p>
 
+      <button
+        onClick={ async () => { 
+          this.handleTest()
+        }}
+      >
+        This is a test!
+      </button>
+
       <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>
       Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
       from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a>
@@ -242,5 +271,3 @@ class App extends Component {
 
 export default App;
 
-const rootElement = document.getElementById("root");
-ReactDOM.render(<App />, rootElement);

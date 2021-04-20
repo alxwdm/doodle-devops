@@ -1,6 +1,7 @@
 {
-  "name": "new",
+  "name": "ddlsvr",
   "version": "1.0.0",
+  "private": true,
   "description": "",
   "keywords": [],
   "main": "src/index.js",
@@ -9,10 +10,12 @@
     "react-canvas-draw": "1.0.0-alpha.10",
     "react-dom": "16.x",
     "react-scripts": "2.0.3",
+    "react-router-dom": "4.3.1",
+    "@testing-library/react": "^9.5.0",
     "@tensorflow/tfjs": "^2.0.0",
-    "@tensorflow/tfjs-node": "^2.0.0"
+    "@tensorflow/tfjs-node": "^2.0.0",
+    "axios": "0.18.0"
   },
-  "devDependencies": {},
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",

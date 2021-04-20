@@ -4,13 +4,12 @@ The key challenge is: Can you draw a cat, dog or mouse so that an AI can recogni
 
 # A multi-service "dockerized" ML app
 
-The following figure shows the architecture of the app. In production, an **nginx** webserver is used to interact with the user. The client runs on a **React.js** framework and the predictions come from a **TensorFlow.js** model. The latest version of the model is provided by an **Express.js** server, which additionally saves the user's interactions in a **PostgreSQL** database. Initially, a pre-trained model is provided using the original dataset. The pre-training is done inside a **Google colab** notebook. Later, the database is used for delta-training on a cloud computing platform, such as **AWS**, to increase the model's performance the more the app is used.
+The following figure shows the architecture of the app. In production, an **nginx** proxy is used to interact with the client. The "doodle server" runs on a **React.js** framework and the predictions come from a **TensorFlow.js** model. The latest version of the model is provided by the "model server" running on **Express.js**, which additionally saves the user's doodles - including the category labels and prediction results - in a **PostgreSQL** database. 
+Initially, a pre-trained model is provided using the original dataset. The pre-training is done inside a **Google colab** notebook. However, the database is used for delta-training on a "training server" (running for example on a cloud computing platform such as **AWS**) in order to increase the model's performance the more the app is used.
 
 <p align="center">
 <img src="https://github.com/alxwdm/doodle-devops/blob/main/doc/multi-services_prod.png" width="700">
 </p>
-
-Note: Currently, a node development server is used instead of nginx.
 
 # Usage
 
@@ -20,11 +19,12 @@ cd doodle-devops
 docker-compose up --build
 ```
 
-After successfully building the images and creating the containers, the website will be available on `http://localhost:3000`.
+After successfully building the images and creating the containers, the website will be available on `http://localhost:3030`.
 
 # A CI/CD workflow for multiple services
 
-**TODO** Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+**TODO** 
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
 
 # About the data and pre-training the model
 
