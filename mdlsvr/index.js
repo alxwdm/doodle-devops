@@ -24,7 +24,7 @@ const pgClient = new Pool({
 
 pgClient.on('connect', () => {
   pgClient
-    .query('CREATE TABLE IF NOT EXISTS values (number INT)')
+    .query('CREATE TABLE IF NOT EXISTS doodles (idx INT, pred INT, data NUMERIC[])')
     .catch((err) => console.log(err));
 });
 
@@ -35,11 +35,27 @@ pgClient.on('connect', () => {
 app.use('/api/model', express.static('tfjs_model'));
 
 // POST requests
-app.post('/api/values', (req, res) => {
+app.post('/api/values/test', (req, res) => {
   res.send('Hi again');
   const index = req.body.index;
   console.log('server here');
   console.log(index);
+});
+app.post('/api/predict', (req, res) => {
+  // get prediction results
+  const cat_idx = req.body.category_idx;
+  const pred_idx = req.body.predict_idx;
+  const data = req.body.data;
+  res.send('recieved prediction results');
+  // log results
+  console.log(cat_idx);
+  console.log(pred_idx);
+  console.log(data);
+  console.log(typeof data);
+  // save doodle in database
+  pgClient.query(
+    "INSERT INTO doodles(idx, pred, data) VALUES($1, $2, $3)", [cat_idx, pred_idx, data]
+    ); 
 });
 
 // GET requests
@@ -47,8 +63,12 @@ app.get('/api/tests', (req, res) => {
   res.send('Hi test');
 });
 
-// TODO: PG communication
+app.get("/api/values/all", async (req, res) => {
+  const values = await pgClient.query("SELECT * from doodles");
+  res.send(values.rows);
+  console.log(values.rows);
+});
 
 app.listen(port, () =>
-  console.log('Express server listening at http://localhost:${port}')
+  console.log('Express server listening on port', port)
 );
