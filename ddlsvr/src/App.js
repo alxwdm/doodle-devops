@@ -1,10 +1,8 @@
 import React, { Component} from "react";
-import ReactDOM from "react-dom";
 import CanvasDraw from "react-canvas-draw";
 import classNames from "./index.css";
 import * as tf from "@tensorflow/tfjs";
 import * as axios from "axios";
-
 // import "./styles.css";
 
 class App extends Component {
