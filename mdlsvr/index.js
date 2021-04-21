@@ -11,6 +11,15 @@ app.use(bodyParser.json());
 // Port Setup
 const port = 4000;
 
+/*
+Set train-test-split ratio
+Each INSERT into the doodle db comes with a set proposal.
+The proposal is determined by a split percentage (for train set).
+During delta-training, this set split can be used as train/test split.
+For debugging/demo purposes, the split_pct is set to 0.5.
+*/
+const train_ratio = 0.5
+
 // Postgres Client Setup
 const keys = require('./keys');
 const { Pool } = require('pg');
@@ -24,7 +33,7 @@ const pgClient = new Pool({
 
 pgClient.on('connect', () => {
   pgClient
-    .query('CREATE TABLE IF NOT EXISTS doodles (idx INT, pred INT, data NUMERIC[])')
+    .query('CREATE TABLE IF NOT EXISTS doodles (idx INT, pred INT, split VARCHAR(5), data NUMERIC[])')
     .catch((err) => console.log(err));
 });
 
@@ -47,14 +56,25 @@ app.post('/api/predict', (req, res) => {
   const pred_idx = req.body.predict_idx;
   const data = req.body.data;
   res.send('recieved prediction results');
+  // determine set
+  var set_split = 'train'
+  if (Math.random() < train_ratio)
+    {
+      set_split = 'train';
+    }
+  else
+    {
+      set_split = 'test';
+    }
   // log results
+  console.log(set_split)
   console.log(cat_idx);
   console.log(pred_idx);
   console.log(data);
   console.log(typeof data);
   // save doodle in database
   pgClient.query(
-    "INSERT INTO doodles(idx, pred, data) VALUES($1, $2, $3)", [cat_idx, pred_idx, data]
+    "INSERT INTO doodles(idx, pred, split, data) VALUES($1, $2, $3, $4)", [cat_idx, pred_idx, set_split, data]
     ); 
 });
 
