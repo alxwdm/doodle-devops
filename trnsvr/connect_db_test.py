@@ -1,7 +1,7 @@
 import psycopg2
 from keys import keys
 
-def connect():
+def connect_db_test():
     """ Connect to the PostgreSQL database server """
     conn = None
     try:
@@ -30,4 +30,4 @@ def connect():
             print('Database connection closed.')
 
 if __name__ == '__main__':
-    connect()
+    connect_db_test()
