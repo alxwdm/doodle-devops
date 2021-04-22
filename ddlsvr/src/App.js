@@ -121,13 +121,6 @@ class App extends Component {
       );
   }
 
-  handleTest = async () => {
-    await axios.post('/api/values/test', {
-      index: -1,
-    });
-    console.log('sent test idx to api');
-  };
-
   handlePredict = async (cat_idx, pred_idx, img) => {
     await axios.post('/api/predict', {
       category_idx: cat_idx,
@@ -249,14 +242,6 @@ class App extends Component {
       <p>
         This is a {this.categories[this.state.predict_idx]}!
       </p>
-
-      <button
-        onClick={ async () => { 
-          this.handleTest()
-        }}
-      >
-        This is a test!
-      </button>
 
       <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>
       Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
