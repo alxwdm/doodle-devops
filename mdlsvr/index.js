@@ -13,10 +13,12 @@ const port = 4000;
 
 /*
 Set train-test-split ratio
-Each INSERT into the doodle db comes with a set proposal.
-The proposal is determined by a split percentage (for train set).
-During delta-training, this set split can be used as train/test split.
-For debugging/demo purposes, the split_pct is set to 0.5.
+Each INSERT into the doodle db comes with a set "proposal".
+During delta-training, this entry can be used as train/test split.
+The proposal is determined by a split percentage and a random number.
+For debugging/demo purposes, the train_ratio is set to 0.5.
+In production, the train_ratio should be set to a range from 0.8 to 0.98
+(depending on the amount of data that becomes available).
 */
 const train_ratio = 0.5
 
@@ -33,7 +35,9 @@ const pgClient = new Pool({
 
 pgClient.on('connect', () => {
   pgClient
-    .query('CREATE TABLE IF NOT EXISTS doodles (idx INT, pred INT, split VARCHAR(5), data NUMERIC[])')
+    .query('CREATE TABLE IF NOT EXISTS \
+            doodles (idx INT, pred INT, split VARCHAR(5), \
+            insert_date DATE NOT NULL DEFAULT CURRENT_DATE, data NUMERIC[])')
     .catch((err) => console.log(err));
 });
 
@@ -74,7 +78,8 @@ app.post('/api/predict', (req, res) => {
   console.log(typeof data);
   // save doodle in database
   pgClient.query(
-    "INSERT INTO doodles(idx, pred, split, data) VALUES($1, $2, $3, $4)", [cat_idx, pred_idx, set_split, data]
+    "INSERT INTO doodles(idx, pred, split, data) VALUES($1, $2, $3, $4)",
+    [cat_idx, pred_idx, set_split, data]
     ); 
 });
 
@@ -82,13 +87,13 @@ app.post('/api/predict', (req, res) => {
 app.get('/api/tests', (req, res) => {
   res.send('Hi test');
 });
-
 app.get("/api/values/all", async (req, res) => {
   const values = await pgClient.query("SELECT * from doodles");
   res.send(values.rows);
   console.log(values.rows);
 });
 
+// Start socket
 app.listen(port, () =>
   console.log('Express server listening on port', port)
 );
