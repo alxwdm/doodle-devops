@@ -1,10 +1,11 @@
 # model.py for delta-training
 import tensorflow as tf
 import psycopg2
+import subprocess
 import numpy as np
 from keys import keys
 
-MODEL_DIR = './model/'
+MODEL_DIR = './trainer/model'
 BATCH_SIZE = 128
 BUFFER_SIZE = 256
 TRAIN_STEPS = 2
@@ -86,6 +87,7 @@ def read_dataset(mode='train'):
     # preprocessing functions
     def _fixup_shape(features, label):
         features = tf.reshape(features, [28, 28, 1])
+        label = tf.squeeze(label)
         return features, label
     def _normalize(features, label):
         features = tf.math.divide(features, 255)
@@ -108,6 +110,27 @@ def read_dataset(mode='train'):
 
     return ds
 
-def train_and_evaluate():
-    # TODO
+def train_and_export():
+    """
+    Trains a pre-trained model with database input and exports it to tfjs.
+    """
+    # load pretrained model
+    model = tf.keras.models.load_model(MODEL_DIR + '/model.h5')
+    # get datasets
+    train_ds = read_dataset(mode='train')
+    test_ds = read_dataset(mode='test')
+    # delta-training
+    history = model.fit(train_ds, 
+                        epochs=TRAIN_STEPS, 
+                        steps_per_epoch=None,
+                        validation_data=test_ds,
+                        validation_freq=1,
+                        verbose=1)
+    # save model
+    model.save(MODEL_DIR + '/model_latest.h5')
+    # convert model to tfjs format
+    print('Exporting model to tfjs format...')
+    subprocess.run(['tensorflowjs_converter', '--input_format=keras', 
+                MODEL_DIR + '/model_latest.h5', MODEL_DIR + '/tfjs_export'])
+    print('Model exported to /tfjs_export.')
     return None
