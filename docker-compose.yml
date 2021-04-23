@@ -35,3 +35,18 @@ services:
       - PGDATABASE=postgres
       - PGPASSWORD=postgres_password
       - PGPORT=5432
+  trnsvr:
+    depends_on:
+      - postgres
+#    restart: always
+    build:
+      dockerfile: Dockerfile.dev
+      context: ./trnsvr
+    volumes:
+      - ./trnsvr:/app
+    environment:
+      - PGUSER=postgres
+      - PGHOST=postgres
+      - PGDATABASE=postgres
+      - PGPASSWORD=postgres_password
+      - PGPORT=5432

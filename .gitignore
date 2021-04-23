@@ -1,2 +1,3 @@
-
 .DS_Store
+trnsvr/__pycache__
+trnsvr/trainer/__pycache__

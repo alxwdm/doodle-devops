@@ -1,10 +1,8 @@
 import React, { Component} from "react";
-import ReactDOM from "react-dom";
 import CanvasDraw from "react-canvas-draw";
 import classNames from "./index.css";
 import * as tf from "@tensorflow/tfjs";
 import * as axios from "axios";
-
 // import "./styles.css";
 
 class App extends Component {
@@ -122,13 +120,6 @@ class App extends Component {
       }
       );
   }
-
-  handleTest = async () => {
-    await axios.post('/api/values/test', {
-      index: -1,
-    });
-    console.log('sent test idx to api');
-  };
 
   handlePredict = async (cat_idx, pred_idx, img) => {
     await axios.post('/api/predict', {
@@ -251,14 +242,6 @@ class App extends Component {
       <p>
         This is a {this.categories[this.state.predict_idx]}!
       </p>
-
-      <button
-        onClick={ async () => { 
-          this.handleTest()
-        }}
-      >
-        This is a test!
-      </button>
 
       <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>
       Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
