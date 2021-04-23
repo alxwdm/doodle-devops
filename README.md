@@ -1,8 +1,18 @@
 # doodle-devops
 This is an **ML DevOps** demo project that uses a **multi-service** approach for model training, serving and user interaction. The demo is inspired by [Google QuickDraw](https://quickdraw.withgoogle.com/) and uses data from the [QuickDraw Dataset](https://github.com/googlecreativelab/quickdraw-dataset) for pre-training the model.
+
 The key challenge is: Can you draw a cat, dog or mouse so that an AI can recognize it?
 
-# A multi-service "dockerized" ML app
+**Table of contents:**
+* [doodle-devops](#doodle-devops)
+* [A multi-service dockerized ML app](#a-multi-service-dockerized-ML-app)
+* [Usage](#usage)
+* [About the data and pre-training the model](#about-the-data-and-pre-training-the-model)
+* [Delta-training with PostgreSQL data](#delta-training-with-postgresql-data)
+* [A few notes on the JavaScript side (frontend and backend)](#a-few-notes-on-the-javascript-side)
+* [A CI/CD workflow for multiple services](#a-ci/cd-workflow-for-multiple-services)
+
+# A multi-service dockerized ML app
 
 The following figure shows the architecture of the app. In production, an **nginx** proxy is used to interact with the client. The "doodle server" runs on a **React.js** framework and the predictions come from a **TensorFlow.js** model. The latest version of the model is provided by the "model server" running on **Express.js**, which additionally saves the user's doodles - including the category labels and prediction results - in a **PostgreSQL** database. 
 Initially, a pre-trained model is provided using the original dataset. The pre-training is done inside a **Google colab** notebook. However, the database is used for delta-training on a "training server" (running for example on a cloud computing platform such as **AWS**) in order to increase the model's performance the more the app is used.
@@ -21,14 +31,9 @@ docker-compose up --build
 
 After successfully building the images and creating the containers, the website will be available on `http://localhost:3030`.
 
-# A CI/CD workflow for multiple services
-
-**TODO** 
-Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
-
 # About the data and pre-training the model
 
-The open source [QuickDraw dataset](https://github.com/googlecreativelab/quickdraw-dataset#get-the-data) has been used for training the initial model. I have used the numpy bitmap files (available on [Google Cloud Platform](https://console.cloud.google.com/storage/quickdraw_dataset/full/numpy_bitmap)], which encode the drawings as 28x28 greyscale images in a numpy array. Because the focus of this project is not on the classification task itself, but rather to demonstrate a multi-service ML app, I have reduced the number of categories to classify down to the following three: Cat, dog and mouse. To save some computing resources, the pre-training is done for free inside a **Google colab** notebook.
+The open source [QuickDraw dataset](https://github.com/googlecreativelab/quickdraw-dataset#get-the-data) has been used for training the initial model. I have used the numpy bitmap files (available on [Google Cloud Platform](https://console.cloud.google.com/storage/quickdraw_dataset/full/numpy_bitmap)), which encode the drawings as 28x28 greyscale images in a numpy array. Because the focus of this project is not on the classification task itself, but rather to demonstrate a multi-service ML app, I have reduced the number of categories to classify down to the following three: Cat, dog and mouse. The pre-training is done for free inside a **Google colab** notebook.
 
 Here is how you get the data used for pre-training:
 ```
@@ -43,37 +48,7 @@ The following image shows samples of the drawings for each category from the ori
 <img src="https://github.com/alxwdm/doodle-devops/blob/main/doc/categories_examples.png" width="500">
 </p>
 
-A few preprocessing steps, such as normalization and reshaping, are neccessary in order to train the model. I have used the **tf.data API** for this, which makes shuffling and batching the data easy and integrates neatly into the TensorFlow world. This is how it is done:
-
-```
-def input_fn(X_train, X_test, y_train, y_test):
-    """
-    Takes numpy train-test data and converts it into a tf.data.Dataset
-    """
-
-    # preprocessing functions
-    def _fixup_shape(features, label):
-        features = tf.reshape(features, [28, 28, 1])
-        return features, label
-    def _normalize(features, label):
-        features = tf.math.divide(features, 255)
-        return features, label
-
-    # Turn numpy ndarray into tf.Dataset
-    train_ds = tf.data.Dataset.from_tensor_slices((X_train, y_train))
-    test_ds = tf.data.Dataset.from_tensor_slices((X_test, y_test))
-
-    # apply preprocessing functions, shuffle and batch
-    train_ds = train_ds.map(_fixup_shape) \
-                    .map(_normalize)
-    train_ds = train_ds.shuffle(buffer_size=BUFFER_SIZE).batch(BATCH_SIZE)
-
-    test_ds = test_ds.map(_fixup_shape) \
-                    .map(_normalize)
-    test_ds = test_ds.batch(1)
-
-    return train_ds, test_ds
-```
+A few preprocessing steps, such as normalization and reshaping the data, are neccessary in order to train the model. I have used the **tf.data API** for this, which makes creating an input pipeline easy and integrates neatly into the TensorFlow world. See the [delta-training](#delta-training-with-postgresql-data) section for more details on this.
 
 As this is an image classification task, a straight-forward choice for the classifier algorithm is a convolutional neural network (CNN). The model architecture I have used consists of three convolutional layers, including max-pooling layers, followed by two dense layers with a total of around 93k parameters. This is how the model looks like, using **tf.keras** to create and train it:
 
@@ -117,3 +92,102 @@ The pre-training finishes with exporting the model into a **TensorFlow.js** comp
 !pip install tensorflowjs
 !tensorflowjs_converter --input_format=keras model.h5 tfjs_model
 ```
+
+# Delta-training with PostgreSQL data
+
+The goal of delta-training is to increase the model's performance the more the app is used. In a production environment, this can have a huge performance impact, especially if the distrubution of the data changes over time. A "static" model will not be able to catch this and may have decreasing performance over time, whereas a delta-trained model adapts to the latest data trends.
+
+For this purpose, all the doodles the production model predicts on are saved into a **PostgreSQL database**. The labels are saved as well as the predicted category - this allows **analyzing the model's performance in production** - together with the insertion timestamp and a train/test-split based on a train ratio percentage. The training server then connects to the database and reads the data with the following SQL query in the `get_data_from_db` function:
+
+```
+def get_data_from_db(mode='train', limit=10000, batch_size=-1):
+    
+    (...) # connect to db
+
+    with conn.cursor() as curs:
+    curs.execute(
+        '''
+        SELECT idx, data 
+        FROM doodles 
+        WHERE split = \'{}\'
+        ORDER BY insert_date DESC
+        LIMIT {}
+        '''.format(mode, limit))
+
+        (...) # fetch and yield data
+```
+
+Performing the train/test-split inside the database allows for querying the desired `mode` and ensures that each doodle remains in the same set, which is an advantage compared to a random split after querying the data. Also, the `insert_date` is used in combination with a `limit` clause to query only the most recent entries. For this demo purpose, this is sufficient. A more sophisticated solution to prevent training for too many epochs on "old" data would be to either save the timestamp of the last delta-training or add a column to the database to save how often each sample has been used for training.
+
+As you can see from the code snippet above, the feature and label pairs are yielded after fetching the data from the database, which turns the `get_data_from_db` function into a python generator. Using the **tf.data API** turns this into a powerful data pipeline:
+
+```
+def read_dataset(mode='train'):
+    """
+    Gets data from PostgreSQL DB and converts it into a tf.data.Dataset.
+    """
+    # preprocessing functions
+    def _fixup_shape(features, label):
+        features = tf.reshape(features, [28, 28, 1])
+        label = tf.squeeze(label)
+        return features, label
+    def _normalize(features, label):
+        features = tf.math.divide(features, 255)
+        return features, label
+
+    # create tf.Dataset by querying database
+    ds = tf.data.Dataset.from_generator(
+            get_data_from_db,
+            args=[mode], 
+            output_types=(tf.float32, tf.int32)
+        )
+    # apply preprocessing steps
+    ds = ds.map(_fixup_shape) \
+           .map(_normalize)
+    # shuffle, batch and repeat depending on mode
+    if mode == 'train':
+        ds = ds.shuffle(buffer_size=BUFFER_SIZE).batch(BATCH_SIZE).prefetch(2)
+    else:
+        ds = ds.batch(BATCH_SIZE).prefetch(2)
+
+    return ds
+```
+
+The delta-training function then uses `read_dataset()` to retrieve the train and test sets from the database as preprocessed and batched tensors, trains for a few epochs and exports the Tensorflow.js model.
+
+```
+def train_and_export():
+
+    (...) # load previously trained model
+
+    # get datasets
+    train_ds = read_dataset(mode='train')
+    test_ds = read_dataset(mode='test')
+
+    # perform delta-training
+    history = model.fit(train_ds, 
+                        epochs=TRAIN_STEPS, 
+                        steps_per_epoch=None,
+                        validation_data=test_ds,
+                        validation_freq=1,
+                        verbose=1)
+
+    # save delta-trained model
+    model.save(MODEL_DIR + '/model_latest.h5')
+
+    # convert model to tfjs format
+    subprocess.run(['tensorflowjs_converter', '--input_format=keras', 
+                MODEL_DIR + '/model_latest.h5', MODEL_DIR + '/tfjs_export'])
+```
+
+After comparing the performance of the delta-trained model to the previous version, the model can be deployed by providing it to the model server. In a production environment, this delta-training may be done on an instance inside a cloud computing platform, such as **AWS**. The great advantage here is that the training server can be started up on demand and the instance can be shut down after the training is done. Because this demo does not require a high performance GPU cluster for training - and to save AWS credits - the training container is started within the docker-compose file. I have implemented a REST API with **Flask** to trigger the delta-training from the model server when enough new data is available.
+
+# A few notes on the JavaScript side
+
+**TODO** 
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+
+# A CI/CD workflow for multiple services
+
+**TODO** 
+Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
