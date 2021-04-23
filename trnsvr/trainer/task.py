@@ -1,11 +1,15 @@
 # task.py for delta-training
-import numpy as np
-import tensorflow as tf
-from model import get_data_from_db, read_dataset, train_and_evaluate
+#import numpy as np
+#import tensorflow as tf
+from model import train_and_export
 
 if __name__ == '__main__':
 
+    # train model with input from database and export as tjfs model
+    train_and_export()
+
     """
+    Debugging:
     # test retrieving data from db
     data_gen = get_data_from_db()
     for data, idces in data_gen:
@@ -19,5 +23,4 @@ if __name__ == '__main__':
         print(tf.shape(feat), tf.shape(label))
         #print(feat, label)
     """
-    # train model with input from database and export as tjfs model
-    train_and_export()
+

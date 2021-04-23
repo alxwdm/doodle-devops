@@ -114,8 +114,11 @@ def train_and_export():
     """
     Trains a pre-trained model with database input and exports it to tfjs.
     """
-    # load pretrained model
-    model = tf.keras.models.load_model(MODEL_DIR + '/model.h5')
+    # load pretrained model (either latest or original pretrained model)
+    try:
+        model = tf.keras.models.load_model(MODEL_DIR + '/model_latest.h5')
+    except:
+        model = tf.keras.models.load_model(MODEL_DIR + '/model_pretrn.h5')
     # get datasets
     train_ds = read_dataset(mode='train')
     test_ds = read_dataset(mode='test')
