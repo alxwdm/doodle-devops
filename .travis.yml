@@ -1,0 +1,42 @@
+sudo: required
+language: generic
+
+services:
+  - docker
+
+before_install:
+  # build test images
+  - docker build -t alxwdm/ddlsvr-tests -f ./ddlsvr/Dockerfile.dev ./ddlsvr
+  - docker build -t alxwdm/trnsvr-tests -f ./ddlsvr/Dockerfile.dev ./trnsvr
+
+script:
+  # run tests
+  - docker run -e CI=true alxwdm/ddlsvr-tests npm test
+  - docker run alxwdm/trnsvr-tests pytest tests/tests.py
+
+after_success:
+  # build images
+  - docker build -t alxwdm/doodle-ddlsvr -f ./ddlsvr/Dockerfile.dev ./ddlsvr
+  - docker build -t alxwdm/doodle-mdlsvr -f ./mdlsvr/Dockerfile.dev ./mdlsvr
+  - docker build -t alxwdm/doodle-trnsvr -f ./trnsvr/Dockerfile.dev ./trnsvr
+  - docker build -t alxwdm/doodle-nginx -f ./nginx/Dockerfile.dev ./nginx
+  # log in to the docker CLI
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  # push images to docker hub
+  - docker push alxwdm/doodle-ddlsvr
+  - docker push alxwdm/doodle-mdlsvr
+  - docker push alxwdm/doodle-trnsvr
+  - docker push alxwdm/doodle-nginx
+
+# deploy app to AWS
+#deploy:
+#  provider: elasticbeanstalk
+#  region: 'us-east-1'
+#  app: 'doodle-devops'
+#  env: 'Doodle-env'
+#  bucket_name: 'elasticbeanstalk-us-east-1-XXXXXXXXX'
+#  bucket_path: 'doodle-bucket'
+#  on:
+#    branch: main
+#  access_key_id: $AWS_ACCESS_KEY
+#  secret_access_key: $AWS_SECRET_KEY
