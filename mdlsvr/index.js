@@ -4,6 +4,11 @@ var path = require("path");
 const bodyParser = require("body-parser");
 var cors = require("cors");
 var axios = require("axios");
+const fs = require("fs");
+const util = require("util");
+const stream = require("stream");
+const pipeline = util.promisify(stream.pipeline);
+const finished = util.promisify(stream.finished);
 
 var app = express();
 app.use(cors());
@@ -13,16 +18,22 @@ app.use(bodyParser.json());
 const port = 4000;
 
 /*
-Set train-test-split ratio
-Each INSERT into the doodle db comes with a set "proposal".
-During delta-training, this entry can be used as train/test split.
-The proposal is determined by a split percentage and a random number.
-For debugging/demo purposes, the train_ratio is set to 0.5.
-In production, the train_ratio should be set to a range from 0.8 to 0.98
-(depending on the amount of data that becomes available).
+Configuration for delta training:
+- train_ratio
+  Each INSERT into the doodle db comes with a set "proposal".
+  During delta-training, this entry can be used as train/test split.
+  The proposal is determined by a split percentage and a random number.
+  For debugging/demo purposes, the train_ratio is set to 0.5.
+  In production, the train_ratio should be set to a range from 0.8 to 0.98
+  (depending on the amount of data that becomes available).
+- train_every
+  Train every x inserations.
+  For demo purposes, this is set to a very low number, e.g. 10.
+  Training takes only a few seconds when set to 10.
+  In a production environment, this should be set to e.g. 5.000.
 */
 const train_ratio = 0.5
-const train_freq = 2
+const train_every = 10
 var insert_cnt = 0
 
 // Postgres Client Setup
@@ -44,20 +55,50 @@ pgClient.on("connect", () => {
     .catch((err) => console.log(err));
 });
 
-// Delta-Training function test
-function trnsvr_test() {
+// Delta-Training function
+async function delta_train() {
     // increment insertion counter
   insert_cnt = insert_cnt + 1
   console.log("insertion counter is: ", insert_cnt) 
-  if (insert_cnt > train_freq) {
-    console.log("start training")
-    // test trnsvr communication
-    axios.get("http://trnsvr:5000/test")
+  if (insert_cnt >= train_every) {
+    // peform training and update weights
+    console.log("starting training...")
+    await axios.post("http://trnsvr:5000/train")
       .then(function (res) {console.log(res.data)})
       .catch(function (err) {console.log(err)});
+    // update model
+    console.log("updating model...")
+    await update_weights().then(console.log('model updated.'))
     // reset insertion counter
     insert_cnt = 0
   }
+}
+
+// Update weights function
+async function update_weights() {
+  const writer = fs.createWriteStream("tfjs_model/group1-shard1of1.bin");
+  return axios({
+    method: "get",
+    url: "http://trnsvr:5000/weights",
+    responseType: "stream",
+  }).then(response => {
+    return new Promise((resolve, reject) => {
+      response.data.pipe(writer);
+      let error = null;
+      writer.on("error", err => {
+        error = err;
+        writer.close();
+        reject(err);
+      });
+      writer.on("close", () => {
+        if (!error) {
+          resolve(true);
+        }
+        //no need to call the reject here, as it will have been called in the
+        //'error' stream;
+      });
+    });
+  });
 }
 
 // Express route handlers
@@ -70,7 +111,7 @@ app.use("/api/model", express.static("tfjs_model"));
 app.post("/api/values/test", (req, res) => {
   res.send("Hi again");
   const index = req.body.index;
-  console.log("server here");
+  console.log("mdlsvr here");
   console.log(index);
 });
 app.post("/api/predict", (req, res) => {
@@ -94,18 +135,33 @@ app.post("/api/predict", (req, res) => {
     "INSERT INTO doodles(idx, pred, split, data) VALUES($1, $2, $3, $4)",
     [cat_idx, pred_idx, set_split, data]
     ); 
-  // delta training test
-  trnsvr_test();
+  // delta-train if enough new data is available (train_freq) and update model
+  delta_train()
 });
 
 // GET requests
-app.get("/api/tests", (req, res) => {
+app.get("/api/test", (req, res) => {
   res.send("Hi test");
+});
+app.get("/api/test_txt", (req, res) => {
+  file = axios.post("http://trnsvr:5000/test_file", {
+    responseType: 'blob'
+  })
+      .then((response) => {
+          fs.writeFile('tfjs_model/test.txt', response.data, (err) => {
+              if (err) throw err;
+              console.log('The file has been saved!');
+          });
+        /* For larger files:
+          https://stackoverflow.com/questions/55374755/node-js-axios-download-file-stream-and-writefile/64925465#64925465
+        */
+      })
+      .catch(function (err) {console.log(err)});
+  console.log(file);
 });
 app.get("/api/values/all", async (req, res) => {
   const values = await pgClient.query("SELECT * from doodles");
   res.send(values.rows);
-  console.log(values.rows);
 });
 
 // Start socket

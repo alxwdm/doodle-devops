@@ -29,19 +29,8 @@ class App extends Component {
 
   async loadModel() {
     try {
-      /*
-      Loads a TensorFlow json model from a server.
-
-      Example Code:
-      - server: https://codesandbox.io/s/upbeat-lumiere-qyeho?file=/src/index.js
-      - client: https://codesandbox.io/s/brave-murdock-ck6of?file=/src/App.js
-      */
-
       // Load model from express server
       const model = await tf.loadLayersModel('api/model/model.json');
-      // w/o nginx: load via localhost
-      //const model = await tf.loadLayersModel('http://localhost:4000/model/model.json');
-
       this.state.model = model;
       console.log('Loaded TF model');
       } 

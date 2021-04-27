@@ -5,7 +5,7 @@ import subprocess
 import numpy as np
 from keys import keys
 
-MODEL_DIR = './trainer/model'
+MODEL_DIR = './trainer/model/'
 BATCH_SIZE = 128
 BUFFER_SIZE = 256
 TRAIN_STEPS = 2
@@ -19,7 +19,7 @@ def get_data_from_db(mode='train', limit=10000, batch_size=-1):
     Data is retrieved in batches of batch_size.
     To load everything in one step, set batch_size to -1 (default).
     """
-    # convert string types to fit tf args input (and to avoid SQL injection)
+    # convert string types to fit tf args input
     if isinstance(mode, bytes):
         mode = mode.decode('utf-8')
     else:
@@ -27,24 +27,26 @@ def get_data_from_db(mode='train', limit=10000, batch_size=-1):
     conn = None
     try:
         # connect to the PostgreSQL server
-        print('Connecting to the PostgreSQL database...')
+        #print('Connecting to the PostgreSQL database...')
         conn = psycopg2.connect(**KEYS)
-        # test connection by printing db version 
+        """
+        for debugging: test connection by printing db version 
         with conn.cursor() as curs:
             curs.execute('SELECT version()')
             db_version = curs.fetchone()
             print('Success! PostgreSQL database version:')
             print(db_version)
+        """
         # retrieve data from db
         with conn.cursor() as curs:
             curs.execute(
                 '''
                 SELECT idx, data 
                 FROM doodles 
-                WHERE split = \'{}\'
+                WHERE split = %s
                 ORDER BY insert_date DESC
-                LIMIT {}
-                '''.format(mode, limit))
+                LIMIT %s
+                ''',(mode, limit))
             # fetch data depending on batch_size setting
             if batch_size<0:
                 results = curs.fetchall()
@@ -78,7 +80,7 @@ def get_data_from_db(mode='train', limit=10000, batch_size=-1):
     finally:
         if conn is not None:
             conn.close()
-            print('Database connection closed.')
+            #print('Database connection closed.')
 
 def read_dataset(mode='train'):
     """
@@ -116,24 +118,28 @@ def train_and_export():
     """
     # load pretrained model (either latest or original pretrained model)
     try:
-        model = tf.keras.models.load_model(MODEL_DIR + '/model_latest.h5')
+        model = tf.keras.models.load_model(MODEL_DIR + 'model_latest.h5')
     except:
-        model = tf.keras.models.load_model(MODEL_DIR + '/model_pretrn.h5')
+        model = tf.keras.models.load_model(MODEL_DIR + 'model_pretrn.h5')
     # get datasets
     train_ds = read_dataset(mode='train')
     test_ds = read_dataset(mode='test')
+    # get model loss before training
+    pre_loss = model.evaluate(test_ds, verbose=2)[0]
     # delta-training
     history = model.fit(train_ds, 
                         epochs=TRAIN_STEPS, 
                         steps_per_epoch=None,
                         validation_data=test_ds,
                         validation_freq=1,
-                        verbose=1)
-    # save model
-    model.save(MODEL_DIR + '/model_latest.h5')
-    # convert model to tfjs format
-    print('Exporting model to tfjs format...')
-    subprocess.run(['tensorflowjs_converter', '--input_format=keras', 
-                MODEL_DIR + '/model_latest.h5', MODEL_DIR + '/tfjs_export'])
-    print('Model exported to /tfjs_export.')
+                        verbose=2)
+    # get model loss after training (latest epoch)
+    post_loss = history.history['val_loss'][-1]
+    # save and export model if updated model has smaller (or equal) loss
+    if post_loss <= pre_loss:
+        model.save(MODEL_DIR + 'model_latest.h5')
+        print('Exporting model to tfjs format...')
+        subprocess.run(['tensorflowjs_converter', '--input_format=keras', 
+                    MODEL_DIR + 'model_latest.h5', MODEL_DIR + 'tfjs_export'])
+        print('Model exported to /tfjs_export.')
     return None
