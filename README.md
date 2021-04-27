@@ -105,14 +105,14 @@ def get_data_from_db(mode='train', limit=10000, batch_size=-1):
     (...) # connect to db
 
     with conn.cursor() as curs:
-    curs.execute(
-        '''
-        SELECT idx, data 
-        FROM doodles 
-        WHERE split = \'{}\'
-        ORDER BY insert_date DESC
-        LIMIT {}
-        '''.format(mode, limit))
+        curs.execute(
+            '''
+            SELECT idx, data 
+            FROM doodles 
+            WHERE split = %s
+            ORDER BY insert_date DESC
+            LIMIT %s
+            ''',(mode, limit))
 
         (...) # fetch and yield data
 ```
@@ -153,7 +153,7 @@ def read_dataset(mode='train'):
     return ds
 ```
 
-The delta-training function then uses `read_dataset()` to retrieve the train and test sets from the database as preprocessed and batched tensors, trains for a few epochs and exports the Tensorflow.js model.
+The delta-training function then uses `read_dataset()` to retrieve the train and test sets from the database as preprocessed and batched tensors, trains for a few epochs and exports the Tensorflow.js model. Here's a truncated code snippet of the `train_and_export()` function:
 
 ```
 def train_and_export():
@@ -172,22 +172,32 @@ def train_and_export():
                         validation_freq=1,
                         verbose=1)
 
+    (...) # compare model performance
+
     # save delta-trained model
     model.save(MODEL_DIR + '/model_latest.h5')
 
-    # convert model to tfjs format
+    # convert model into tfjs format
     subprocess.run(['tensorflowjs_converter', '--input_format=keras', 
                 MODEL_DIR + '/model_latest.h5', MODEL_DIR + '/tfjs_export'])
 ```
 
-After comparing the performance of the delta-trained model to the previous version, the model can be deployed by providing it to the model server. In a production environment, this delta-training may be done on an instance inside a cloud computing platform, such as **AWS**. The great advantage here is that the training server can be started up on demand and the instance can be shut down after the training is done. Because this demo does not require a high performance GPU cluster for training - and to save AWS credits - the training container is started within the docker-compose file. I have implemented a REST API with **Flask** to trigger the delta-training from the model server when enough new data is available.
+After comparing the performance of the delta-trained model to the previous version, the model can be deployed by providing it to the model server. In a production environment, this delta-training may be done on an instance inside a cloud computing platform, such as **AWS**. The great advantage here is that the training server can be started up on demand and the instance can be shut down after the training is done, saving the model into a cloud storage bucket. Because this demo does not require a high performance GPU instance for training - and to save AWS credits - the training container is started within the docker-compose file. Instead of using an AWS service, I have implemented a REST API with **Flask** to trigger the delta-training by the model server when enough new data is available.
 
 # A few notes on the JavaScript side
 
-**TODO** 
-Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+The JavaScript part of the project is based on **Node.js**. The frontend assets are provided by the "doodle-server" and is made using the **React.js** framework. It was set up with [create-react-app](https://reactjs.org/docs/create-a-new-react-app.html#create-react-app) and includes a drawing canvas from [embiem/react-canvas-draw](https://github.com/embiem/react-canvas-draw).
+The classification of the drawings is done with a **TensorFlow.js** model that is provided by the "model-server", which runs on **Express.js**. The inference is done on the client side, which means the model is exposed to the browser. In a real world application, this architecture is only reasonable if the model is not an IP-critical part of the business.
+The model server also saves the drawings into a database and triggers delta-training when enough new data is available. Additionally, **nginx** serves as a proxy to route the corresponding requests to the doodle server or model server and is used for the production build webserver. 
+
+*Note:* As this is my first project using JavaScript, there may be imperfections in the code. Feedback on improvements are welcome. The core architecture of the JavaScript side was inspired by this udemy course on [Docker and Kubernetes](https://www.udemy.com/course/docker-and-kubernetes-the-complete-guide/).
 
 # A CI/CD workflow for multiple services
 
-**TODO** 
-Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.
+The following picture shows a CI/CD workflow for a multi-service application (props to [Stephen Grider](https://www.udemy.com/course/docker-and-kubernetes-the-complete-guide/)):
+
+<p align="center">
+<img src="https://github.com/alxwdm/doodle-devops/blob/main/doc/ci-cd_workflow.png" width="500">
+</p>
+
+New features are developed in a separate branch, for example the feature branch. After merging a pull request to the main branch, **Travis CI** starts building the images, runs tests on them and - after passing the tests - deploys the updated images to a cloud provider, for example on **AWS** Elastic Beanstalk, via Docker Hub. The configuration of this CI/CD workflow can be found in the `.travis.yml` file. For the deployment part, the corresponding architecture (such as EB environments, VPNs, etc.) and instances need to be set up inside AWS. Afterwards, the `Dockerrun.aws.json` file contains instructions for AWS on how to use the multiple services.
