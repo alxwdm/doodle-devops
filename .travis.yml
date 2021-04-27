@@ -16,10 +16,10 @@ script:
 
 after_success:
   # build images
-  - docker build -t alxwdm/doodle-ddlsvr -f ./ddlsvr/Dockerfile.dev ./ddlsvr
-  - docker build -t alxwdm/doodle-mdlsvr -f ./mdlsvr/Dockerfile.dev ./mdlsvr
+  - docker build -t alxwdm/doodle-ddlsvr ./ddlsvr
+  - docker build -t alxwdm/doodle-mdlsvr ./mdlsvr
   - docker build -t alxwdm/doodle-trnsvr -f ./trnsvr/Dockerfile.dev ./trnsvr
-  - docker build -t alxwdm/doodle-nginx -f ./nginx/Dockerfile.dev ./nginx
+  - docker build -t alxwdm/doodle-nginx ./nginx
   # log in to the docker CLI
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
   # push images to docker hub

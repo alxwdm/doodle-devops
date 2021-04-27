@@ -1,0 +1,41 @@
+{
+  "AWSEBDockerrunVersion": 2,
+  "containerDefinitions": [
+    {
+      "name": "ddlsvr",
+      "image": "alxwdm/doodle-ddlsvr",
+      "hostname": "ddlsvr",
+      "essential": false,
+      "memory": 128
+    },
+    {
+      "name": "mdlsvr",
+      "image": "alxwdm/doodle-mdlsvr",
+      "hostname": "api",
+      "essential": false,
+      "memory": 128
+    },
+    {
+      "name": "trnsvr",
+      "image": "alxwdm/doodle-trnsvr",
+      "hostname": "trnsvr",
+      "essential": false,
+      "links": ["mdlsvr"],
+      "memory": 2048
+    },
+    {
+      "name": "nginx",
+      "image": "alxwdm/doodle-nginx",
+      "hostname": "nginx",
+      "essential": true,
+      "portMappings": [
+        {
+          "hostPort": 80,
+          "containerPort": 80
+        }
+      ],
+      "links": ["ddlsvr", "mdlsvr"],
+      "memory": 128
+    }
+  ]
+}
