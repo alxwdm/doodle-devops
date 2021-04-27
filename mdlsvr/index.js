@@ -18,13 +18,19 @@ app.use(bodyParser.json());
 const port = 4000;
 
 /*
-Set train-test-split ratio
-Each INSERT into the doodle db comes with a set "proposal".
-During delta-training, this entry can be used as train/test split.
-The proposal is determined by a split percentage and a random number.
-For debugging/demo purposes, the train_ratio is set to 0.5.
-In production, the train_ratio should be set to a range from 0.8 to 0.98
-(depending on the amount of data that becomes available).
+Configuration for delta training:
+- train_ratio
+  Each INSERT into the doodle db comes with a set "proposal".
+  During delta-training, this entry can be used as train/test split.
+  The proposal is determined by a split percentage and a random number.
+  For debugging/demo purposes, the train_ratio is set to 0.5.
+  In production, the train_ratio should be set to a range from 0.8 to 0.98
+  (depending on the amount of data that becomes available).
+- train_every
+  Train every x inserations.
+  For demo purposes, this is set to a very low number, e.g. 10.
+  Training takes only a few seconds when set to 10.
+  In a production environment, this should be set to e.g. 5.000.
 */
 const train_ratio = 0.5
 const train_every = 10
@@ -134,7 +140,7 @@ app.post("/api/predict", (req, res) => {
 });
 
 // GET requests
-app.get("/api/tests", (req, res) => {
+app.get("/api/test", (req, res) => {
   res.send("Hi test");
 });
 app.get("/api/test_txt", (req, res) => {
