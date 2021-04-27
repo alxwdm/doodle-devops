@@ -27,7 +27,7 @@ def get_data_from_db(mode='train', limit=10000, batch_size=-1):
     conn = None
     try:
         # connect to the PostgreSQL server
-        print('Connecting to the PostgreSQL database...')
+        #print('Connecting to the PostgreSQL database...')
         conn = psycopg2.connect(**KEYS)
         """
         for debugging: test connection by printing db version 
@@ -43,10 +43,10 @@ def get_data_from_db(mode='train', limit=10000, batch_size=-1):
                 '''
                 SELECT idx, data 
                 FROM doodles 
-                WHERE split = \'{}\'
+                WHERE split = %s
                 ORDER BY insert_date DESC
-                LIMIT {}
-                '''.format(mode, limit)) # TODO rework this!
+                LIMIT %s
+                ''',(mode, limit))
             # fetch data depending on batch_size setting
             if batch_size<0:
                 results = curs.fetchall()
@@ -80,7 +80,7 @@ def get_data_from_db(mode='train', limit=10000, batch_size=-1):
     finally:
         if conn is not None:
             conn.close()
-            print('Database connection closed.')
+            #print('Database connection closed.')
 
 def read_dataset(mode='train'):
     """
@@ -124,20 +124,22 @@ def train_and_export():
     # get datasets
     train_ds = read_dataset(mode='train')
     test_ds = read_dataset(mode='test')
+    # get model loss before training
+    pre_loss = model.evaluate(test_ds, verbose=2)[0]
     # delta-training
     history = model.fit(train_ds, 
                         epochs=TRAIN_STEPS, 
                         steps_per_epoch=None,
                         validation_data=test_ds,
                         validation_freq=1,
-                        verbose=1)
-    # save model
-    model.save(MODEL_DIR + 'model_latest.h5')
-    # compare model performance
-    # TODO
-    # convert model to tfjs format
-    print('Exporting model to tfjs format...')
-    subprocess.run(['tensorflowjs_converter', '--input_format=keras', 
-                MODEL_DIR + 'model_latest.h5', MODEL_DIR + 'tfjs_export'])
-    print('Model exported to /tfjs_export.')
+                        verbose=2)
+    # get model loss after training (latest epoch)
+    post_loss = history.history['val_loss'][-1]
+    # save and export model if updated model has smaller (or equal) loss
+    if post_loss <= pre_loss:
+        model.save(MODEL_DIR + 'model_latest.h5')
+        print('Exporting model to tfjs format...')
+        subprocess.run(['tensorflowjs_converter', '--input_format=keras', 
+                    MODEL_DIR + 'model_latest.h5', MODEL_DIR + 'tfjs_export'])
+        print('Model exported to /tfjs_export.')
     return None
