@@ -7,7 +7,7 @@ services:
 before_install:
   # build test images
   - docker build -t alxwdm/ddlsvr-tests -f ./ddlsvr/Dockerfile.dev ./ddlsvr
-  - docker build -t alxwdm/trnsvr-tests -f ./ddlsvr/Dockerfile.dev ./trnsvr
+  - docker build -t alxwdm/trnsvr-tests -f ./trnsvr/Dockerfile.dev ./trnsvr
 
 script:
   # run tests
