@@ -19,7 +19,7 @@ def get_data_from_db(mode='train', limit=10000, batch_size=-1):
     Data is retrieved in batches of batch_size.
     To load everything in one step, set batch_size to -1 (default).
     """
-    # convert string types to fit tf args input (and to avoid SQL injection)
+    # convert string types to fit tf args input
     if isinstance(mode, bytes):
         mode = mode.decode('utf-8')
     else:
@@ -46,7 +46,7 @@ def get_data_from_db(mode='train', limit=10000, batch_size=-1):
                 WHERE split = \'{}\'
                 ORDER BY insert_date DESC
                 LIMIT {}
-                '''.format(mode, limit))
+                '''.format(mode, limit)) # TODO rework this!
             # fetch data depending on batch_size setting
             if batch_size<0:
                 results = curs.fetchall()
