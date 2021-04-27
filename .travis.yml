@@ -12,7 +12,7 @@ before_install:
 script:
   # run tests
   - docker run -e CI=true alxwdm/ddlsvr-tests npm test
-  - docker run alxwdm/trnsvr-tests pytest tests/tests.py
+  - docker run alxwdm/trnsvr-tests pytest ./tests/tests.py
 
 after_success:
   # build images
