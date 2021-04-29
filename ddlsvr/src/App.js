@@ -15,14 +15,15 @@ class App extends Component {
     model: null,
     metadata: null,
     category_idx: 0,
-    predict_idx: false,
+    predict_idx: 3,
     predict_valid: false
   };
 
   categories = [
     'cat',
     'dog',
-    'mouse'
+    'mouse',
+    '... erm?'
   ];
 
   img_test = null;
@@ -42,7 +43,7 @@ class App extends Component {
     /* 
     Selects a random category
     */
-    const new_idx = Math.floor(Math.random()*this.categories.length);
+    const new_idx = Math.floor(Math.random()*(this.categories.length-1));
     this.setState({category_idx: new_idx});
   }
 
@@ -135,9 +136,21 @@ class App extends Component {
       <h1>Cat, dog or mouse - can an AI recognize your drawing?</h1>
 
       <p>
-        Can you draw a {this.categories[this.state.category_idx]} for me?
+        DoodleAI: Hi there! Can you draw a {this.categories[this.state.category_idx]} for me?
       </p>
+      <p>
+        You: 
 
+
+      <button
+        onClick={() => {
+          this.saveableCanvas.clear();
+          this.random_choice();
+        }}
+      >
+        Sure I can!
+
+      </button>
       <button
         onClick={() => {
           this.saveableCanvas.clear();
@@ -146,9 +159,11 @@ class App extends Component {
       >
         Give me something else!
       </button>
+      </p>
 
       <p>
 
+      DoodleAI: Okay, here we go...
       </p>
 
       <div className={classNames.tools}>
@@ -184,6 +199,8 @@ class App extends Component {
       
       </p>
 
+      <p>
+      You: 
       <button
         onClick={ async () => {
         if (this.state.model == null) {
@@ -198,24 +215,14 @@ class App extends Component {
           );       
         }}
       >
-        Done drawing.
+        I'm done drawing.
       </button>
+      </p>
 
       <p>
 
-        Ready? Let me see what you have drawn here...
+        DoodleAI: Ready? Okay, let me see what you have drawn here...
       </p>
-
-      <button
-        onClick={ async () => { 
-        if (this.state.model == null) {
-              await this.loadModel();
-            }
-          this.model_predict();      
-        }}
-      >
-        Make a prediction!
-      </button>
 
       <CanvasDraw
         ref={canvasDraw => (this.loadableCanvas = canvasDraw)}
@@ -228,13 +235,34 @@ class App extends Component {
         disabled={true}
         hideGrid={true}
       />
+
       <p>
-        This is a {this.categories[this.state.predict_idx]}!
+      You: 
+      <button
+        onClick={ async () => { 
+        if (this.state.model == null) {
+              await this.loadModel();
+            }
+          this.model_predict();      
+        }}
+      >
+        Guess what it is!
+      </button>
       </p>
 
-      <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>
+      <p>
+        DoodleAI: This is a {this.categories[this.state.predict_idx]}!
+      </p>
+
+      <div id="insp" style={{"color": "grey", "fontSize": 8+'px'}}>>
+      Project inspired by <a href="https://quickdraw.withgoogle.com/" title="QuickDraw">Google Quickdraw.</a>
+      </div>
+      <div id="ds" style={{"color": "grey", "fontSize": 8+'px'}}>>
+      Model pre-training was done using the <a href="https://github.com/googlecreativelab/quickdraw-dataset/" title="QuickDraw">Quickdraw dataset.</a>
+      </div>
+      <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>      
       Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
-      from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a>
+      from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com.</a>
       </div>
     </div>
   );
