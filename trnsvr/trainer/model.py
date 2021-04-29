@@ -138,8 +138,8 @@ def train_and_export():
     # save and export model if updated model has smaller (or equal) loss
     if post_loss <= pre_loss:
         model.save(MODEL_DIR + 'model_latest.h5')
-        print('Exporting model to tfjs format...')
+        #print('Exporting model to tfjs format...')
         subprocess.run(['tensorflowjs_converter', '--input_format=keras', 
                     MODEL_DIR + 'model_latest.h5', MODEL_DIR + 'tfjs_export'])
-        print('Model exported to /tfjs_export.')
+        #print('Model exported to /tfjs_export.')
     return None
