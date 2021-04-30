@@ -12,20 +12,33 @@ class App extends Component {
     height: 400,
     brushRadius: 8,
     lazyRadius: 0,
+    loadimmediate: false,
     model: null,
     metadata: null,
     category_idx: 0,
-    predict_idx: false,
-    predict_valid: false
+    predict_idx: 3,
+    predict_valid: false,
+    display_drawable_canvas: false,
+    display_loadable_canvas: false,
+    display_category_choice: true,
+    display_affirmation: false,
+    display_guess_button: false,
+    display_drawing_tools: false,
+    display_guessing: false,
+    disable_drawing: false
   };
 
   categories = [
     'cat',
     'dog',
-    'mouse'
+    'mouse',
+    '... erm?'
   ];
 
   img_test = null;
+
+  min_pred_conf = 0.95;
+  min_insert_conf = 0.85;
 
   async loadModel() {
     try {
@@ -42,7 +55,7 @@ class App extends Component {
     /* 
     Selects a random category
     */
-    const new_idx = Math.floor(Math.random()*this.categories.length);
+    const new_idx = Math.floor(Math.random()*(this.categories.length-1));
     this.setState({category_idx: new_idx});
   }
 
@@ -66,7 +79,7 @@ class App extends Component {
     Also rescales the image data to (28,28) and reduces the dimensions.
     */
     var img = new Image();
-    img.src = this.loadableCanvas.canvasContainer.children[1].toDataURL();
+    img.src = this.saveableCanvas.canvasContainer.children[1].toDataURL();
     img.width = 400;
     img.height = 400;
     const model = this.state.model;
@@ -81,8 +94,13 @@ class App extends Component {
   async model_predict() {
     /*
     Predicts on canvas data.
+    The confidence of the prediction is determined by a softmax.
+    -> If the confidence is below a threshold, the model's prediction is ignored.
+    Afterwards, the drawing is persisted in a database for delta training.
+    -> This is only done if the confidence is above an insertion threshold.
+    -> If this is not the case, then the drawing is probably nonsense.
     */
-    console.log('Predicting...');
+    console.log('predicting...');
     this.canvas_to_tensor(
       (model, tf_img) => {
         // retrieve prediction data
@@ -92,19 +110,43 @@ class App extends Component {
         // predict on image tensor
         tf_img = tf.expandDims(tf_img, 0);
         const pred_logits = model.predict(tf_img).squeeze();
-        const pred_idx_tf = pred_logits.argMax(0);
-        // output prediction to console -- tensors
-        //console.log(pred_logits.print(true));
-        //console.log(pred_idx_tf.print(true));   
-        // output prediction to console - array
-        const pred_idx = pred_idx_tf.dataSync();
+        const pred_idx = pred_logits.argMax(0).dataSync();
+        const max_logits = pred_logits.max(0).dataSync();
+        //debugging: log logits
+        console.log(pred_logits.print())
+        // check prediction confidence via customized softmax fn
+        var pred_exp = null
+        if (max_logits > 80) {
+          /* note: logits > 80 lead to inf values (float32)
+                   Re-scaling distorts the probabilites, but testing 
+                   showed that it works out for this 3 category demo case. */
+          pred_exp = tf.exp(tf.div(pred_logits,tf.scalar(100))); 
+        } 
+        if (max_logits < 80) {
+          pred_exp = tf.exp(pred_logits);          
+        }  
+        const pred_total = tf.sum(pred_exp)
+        const pred_softmax = tf.div(pred_exp, pred_total)
+        const pred_max_sm = pred_softmax.max(0).dataSync();
+        console.log('softmax output: ' + pred_softmax.dataSync());
+        // set state according to prediciton and confidence
+        if (pred_max_sm > this.min_pred_conf) {
         this.setState({predict_idx: pred_idx});
+        this.setState({predict_valid: true}); 
+        this.setState({display_guessing: false}); 
+        console.log('predicted category: ' + pred_idx[0]);         
+        }
+        else {
+        this.setState({predict_idx: 3});
         this.setState({predict_valid: true});
-        // log prediction output to console
-        console.log('Prediction is: ' + pred_idx[0]);
-        console.log(this.categories[this.state.predict_idx]);
-        // send to mdlsvr
-        this.handlePredict(cat_idx, pred_idx[0], data_arr);
+        this.setState({display_guessing: false}); 
+        console.log('confidence below threshold!');            
+        }
+        // send data to mdlsvr to persist in database
+        // (only if the confidence level is above threshold)
+        if (pred_max_sm > this.min_insert_conf) {
+          this.handlePredict(cat_idx, pred_idx[0], data_arr);          
+        }
         return pred_idx;
       }
       );
@@ -116,7 +158,7 @@ class App extends Component {
       predict_idx: pred_idx,
       data: img
     });
-    console.log('sent prediction to api');
+    console.log('sent doodle to mdlsvr.');
   };
 
 /*
@@ -135,22 +177,46 @@ class App extends Component {
       <h1>Cat, dog or mouse - can an AI recognize your drawing?</h1>
 
       <p>
-        Can you draw a {this.categories[this.state.category_idx]} for me?
+        DoodleAI: Hi there! Can you draw a {this.categories[this.state.category_idx]} for me?
       </p>
+      {this.state.display_category_choice &&
+      <p> 
 
       <button
+        onClick={async() => {
+          if (this.state.model == null) {
+              await this.loadModel();
+            }
+          this.setState({display_drawing_tools: true});
+          this.setState({display_drawable_canvas: true});
+          this.setState({display_affirmation: true});
+          this.setState({display_category_choice: false});
+        }}
+      >
+        Sure I can!
+
+      </button>
+      <button
         onClick={() => {
-          this.saveableCanvas.clear();
           this.random_choice();
         }}
       >
         Give me something else!
       </button>
+      </p>}
 
+      {this.state.display_affirmation &&
+      <p>
+      You: Sure I can!
+      </p>}
+
+      {this.state.display_drawable_canvas &&
       <p>
 
-      </p>
+      DoodleAI: Okay, here we go...
+      </p>}
 
+      {this.state.display_drawing_tools &&
       <div className={classNames.tools}>
         <button
           onClick={() => {
@@ -166,11 +232,41 @@ class App extends Component {
         >
           Undo
         </button>
+        <button
+          onClick={ async () => {
+          if (this.state.model == null) {
+                await this.loadModel();
+              }
+          await localStorage.setItem(
+                "savedDrawing",
+                this.saveableCanvas.getSaveData()
+              );
+          await this.setState({loadimmediate: false})
+          await this.setState({display_loadable_canvas: true})      
+          await this.setState({display_guess_button: true})
+          await this.setState({display_drawing_tools: false})
+          await this.setState({disable_drawing: true})
+          await this.saveableCanvas.loadSaveData(localStorage.getItem("savedDrawing"))
+          }}
+        >
+          Done
+        </button>        
         <p>
         
         </p>
-      </div>
+      </div>}
 
+      {this.state.display_loadable_canvas &&
+      <div>
+      <p>
+      You: I'm done drawing!
+      </p>
+      <p>
+      DoodleAI: Ready? Okay, let me see what you have drawn here...
+      </p>
+      </div>}
+
+      {this.state.display_drawable_canvas &&
       <CanvasDraw
         ref={canvasDraw => (this.saveableCanvas = canvasDraw)}
         brushColor={this.state.color}
@@ -178,63 +274,82 @@ class App extends Component {
         lazyRadius={this.state.lazyRadius}
         canvasWidth={this.state.width}
         canvasHeight={this.state.height}
-      />
+        immediateLoading={this.state.loadimmediate}
+        disabled={this.state.disable_drawing}
+      />}
 
       <p>
       
       </p>
 
-      <button
-        onClick={ async () => {
-        if (this.state.model == null) {
-              await this.loadModel();
-            }
-        await localStorage.setItem(
-              "savedDrawing",
-              this.saveableCanvas.getSaveData()
-            );
-        await this.loadableCanvas.loadSaveData(
-            localStorage.getItem("savedDrawing")
-          );       
-        }}
-      >
-        Done drawing.
-      </button>
-
+      {this.state.display_guess_button &&
       <p>
-
-        Ready? Let me see what you have drawn here...
-      </p>
-
+      You: 
       <button
         onClick={ async () => { 
-        if (this.state.model == null) {
+          this.setState({loadimmediate: true})
+          if (this.state.model == null) {
               await this.loadModel();
             }
-          this.model_predict();      
+          await this.setState({display_guess_button: false});
+          await this.setState({display_guessing: true});
+          await this.model_predict();
         }}
       >
-        Make a prediction!
+        Guess what it is!
       </button>
+      </p>}
 
-      <CanvasDraw
-        ref={canvasDraw => (this.loadableCanvas = canvasDraw)}
-        brushColor={this.state.color}
-        brushRadius={this.state.brushRadius}
-        lazyRadius={this.state.lazyRadius}
-        canvasWidth={this.state.width}
-        canvasHeight={this.state.height}
-        saveData={localStorage.getItem("savedDrawing")}
-        disabled={true}
-        hideGrid={true}
-      />
+      {this.state.display_guessing &&
+      <div>
       <p>
-        This is a {this.categories[this.state.predict_idx]}!
+        You: Guess what it is!
+      </p>
+      <p>
+        DoodleAI is guessing...
+      </p>
+      </div>}
+
+      {this.state.predict_valid &&
+      <div>
+      <p>
+        You: Guess what it is!
+      </p>
+      <p>
+        DoodleAI: This is a {this.categories[this.state.predict_idx]}!
       </p>
 
-      <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>
-      Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
-      from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a>
+      <p>
+      You: 
+      <button
+        onClick={async () => { 
+          await this.saveableCanvas.clear();
+          await this.setState({predict_valid: false})
+          await this.setState({display_loadable_canvas: false})
+          await this.setState({display_drawable_canvas: false})
+          await this.setState({predict_valid: false})
+          await this.setState({loadimmediate: true})
+          await this.setState({display_affirmation: false});
+          await this.setState({display_category_choice: true});
+          await this.setState({disable_drawing: false});
+          await localStorage.setItem("savedDrawing", null);
+          }}
+      >
+        Let's play again!
+      </button>
+      </p>
+      </div>}
+
+      <div id="insp" style={{"color": "grey", "fontSize": 8+'px'}}>
+      <br/><br/><br/><br/><br/>
+      >Project inspired by <a href="https://quickdraw.withgoogle.com/" title="QuickDraw">Google Quickdraw.</a>
+      </div>
+      <div id="ds" style={{"color": "grey", "fontSize": 8+'px'}}>
+      >Model pre-training was done using the <a href="https://github.com/googlecreativelab/quickdraw-dataset/" title="QuickDraw">Quickdraw dataset.</a>
+      </div>
+      <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>     
+      >Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
+      from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com.</a>
       </div>
     </div>
   );
@@ -242,4 +357,3 @@ class App extends Component {
 }
 
 export default App;
-
