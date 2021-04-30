@@ -17,7 +17,15 @@ class App extends Component {
     metadata: null,
     category_idx: 0,
     predict_idx: 3,
-    predict_valid: false
+    predict_valid: false,
+    display_drawable_canvas: false,
+    display_loadable_canvas: false,
+    display_category_choice: true,
+    display_affirmation: false,
+    display_guess_button: false,
+    display_drawing_tools: false,
+    display_guessing: false,
+    disable_drawing: false
   };
 
   categories = [
@@ -71,7 +79,7 @@ class App extends Component {
     Also rescales the image data to (28,28) and reduces the dimensions.
     */
     var img = new Image();
-    img.src = this.loadableCanvas.canvasContainer.children[1].toDataURL();
+    img.src = this.saveableCanvas.canvasContainer.children[1].toDataURL();
     img.width = 400;
     img.height = 400;
     const model = this.state.model;
@@ -125,11 +133,13 @@ class App extends Component {
         if (pred_max_sm > this.min_pred_conf) {
         this.setState({predict_idx: pred_idx});
         this.setState({predict_valid: true}); 
+        this.setState({display_guessing: false}); 
         console.log('predicted category: ' + pred_idx[0]);         
         }
         else {
         this.setState({predict_idx: 3});
-        this.setState({predict_valid: true}); 
+        this.setState({predict_valid: true});
+        this.setState({display_guessing: false}); 
         console.log('confidence below threshold!');            
         }
         // send data to mdlsvr to persist in database
@@ -169,35 +179,44 @@ class App extends Component {
       <p>
         DoodleAI: Hi there! Can you draw a {this.categories[this.state.category_idx]} for me?
       </p>
-      <p>
-        You: 
-
+      {this.state.display_category_choice &&
+      <p> 
 
       <button
         onClick={async() => {
           if (this.state.model == null) {
               await this.loadModel();
-            }}
-        }
+            }
+          this.setState({display_drawing_tools: true});
+          this.setState({display_drawable_canvas: true});
+          this.setState({display_affirmation: true});
+          this.setState({display_category_choice: false});
+        }}
       >
         Sure I can!
 
       </button>
       <button
         onClick={() => {
-          this.saveableCanvas.clear();
           this.random_choice();
         }}
       >
         Give me something else!
       </button>
-      </p>
+      </p>}
 
+      {this.state.display_affirmation &&
+      <p>
+      You: Sure I can!
+      </p>}
+
+      {this.state.display_drawable_canvas &&
       <p>
 
       DoodleAI: Okay, here we go...
-      </p>
+      </p>}
 
+      {this.state.display_drawing_tools &&
       <div className={classNames.tools}>
         <button
           onClick={() => {
@@ -213,11 +232,41 @@ class App extends Component {
         >
           Undo
         </button>
+        <button
+          onClick={ async () => {
+          if (this.state.model == null) {
+                await this.loadModel();
+              }
+          await localStorage.setItem(
+                "savedDrawing",
+                this.saveableCanvas.getSaveData()
+              );
+          await this.setState({loadimmediate: false})
+          await this.setState({display_loadable_canvas: true})      
+          await this.setState({display_guess_button: true})
+          await this.setState({display_drawing_tools: false})
+          await this.setState({disable_drawing: true})
+          await this.saveableCanvas.loadSaveData(localStorage.getItem("savedDrawing"))
+          }}
+        >
+          Done
+        </button>        
         <p>
         
         </p>
-      </div>
+      </div>}
 
+      {this.state.display_loadable_canvas &&
+      <div>
+      <p>
+      You: I'm done drawing!
+      </p>
+      <p>
+      DoodleAI: Ready? Okay, let me see what you have drawn here...
+      </p>
+      </div>}
+
+      {this.state.display_drawable_canvas &&
       <CanvasDraw
         ref={canvasDraw => (this.saveableCanvas = canvasDraw)}
         brushColor={this.state.color}
@@ -226,50 +275,14 @@ class App extends Component {
         canvasWidth={this.state.width}
         canvasHeight={this.state.height}
         immediateLoading={this.state.loadimmediate}
-      />
+        disabled={this.state.disable_drawing}
+      />}
 
       <p>
       
       </p>
 
-      <p>
-      You: 
-      <button
-        onClick={ async () => {
-        if (this.state.model == null) {
-              await this.loadModel();
-            }
-        await localStorage.setItem(
-              "savedDrawing",
-              this.saveableCanvas.getSaveData()
-            );
-        this.setState({loadimmediate: false})
-        await this.loadableCanvas.loadSaveData(
-            localStorage.getItem("savedDrawing")
-          );       
-        }}
-      >
-        I'm done drawing.
-      </button>
-      </p>
-
-      <p>
-
-        DoodleAI: Ready? Okay, let me see what you have drawn here...
-      </p>
-
-      <CanvasDraw
-        ref={canvasDraw => (this.loadableCanvas = canvasDraw)}
-        brushColor={this.state.color}
-        brushRadius={this.state.brushRadius}
-        lazyRadius={this.state.lazyRadius}
-        canvasWidth={this.state.width}
-        canvasHeight={this.state.height}
-        saveData={localStorage.getItem("savedDrawing")}
-        disabled={true}
-        hideGrid={true}
-      />
-
+      {this.state.display_guess_button &&
       <p>
       You: 
       <button
@@ -278,13 +291,30 @@ class App extends Component {
           if (this.state.model == null) {
               await this.loadModel();
             }
-          this.model_predict();      
+          await this.setState({display_guess_button: false});
+          await this.setState({display_guessing: true});
+          await this.model_predict();
         }}
       >
         Guess what it is!
       </button>
-      </p>
+      </p>}
 
+      {this.state.display_guessing &&
+      <div>
+      <p>
+        You: Guess what it is!
+      </p>
+      <p>
+        DoodleAI is guessing...
+      </p>
+      </div>}
+
+      {this.state.predict_valid &&
+      <div>
+      <p>
+        You: Guess what it is!
+      </p>
       <p>
         DoodleAI: This is a {this.categories[this.state.predict_idx]}!
       </p>
@@ -292,21 +322,33 @@ class App extends Component {
       <p>
       You: 
       <button
-        onClick={() => { 
+        onClick={async () => { 
+          await this.saveableCanvas.clear();
+          await this.setState({predict_valid: false})
+          await this.setState({display_loadable_canvas: false})
+          await this.setState({display_drawable_canvas: false})
+          await this.setState({predict_valid: false})
+          await this.setState({loadimmediate: true})
+          await this.setState({display_affirmation: false});
+          await this.setState({display_category_choice: true});
+          await this.setState({disable_drawing: false});
+          await localStorage.setItem("savedDrawing", null);
           }}
       >
         Let's play again!
       </button>
       </p>
+      </div>}
 
-      <div id="insp" style={{"color": "grey", "fontSize": 8+'px'}}>>
-      Project inspired by <a href="https://quickdraw.withgoogle.com/" title="QuickDraw">Google Quickdraw.</a>
+      <div id="insp" style={{"color": "grey", "fontSize": 8+'px'}}>
+      <br/><br/><br/><br/><br/>
+      >Project inspired by <a href="https://quickdraw.withgoogle.com/" title="QuickDraw">Google Quickdraw.</a>
       </div>
-      <div id="ds" style={{"color": "grey", "fontSize": 8+'px'}}>>
-      Model pre-training was done using the <a href="https://github.com/googlecreativelab/quickdraw-dataset/" title="QuickDraw">Quickdraw dataset.</a>
+      <div id="ds" style={{"color": "grey", "fontSize": 8+'px'}}>
+      >Model pre-training was done using the <a href="https://github.com/googlecreativelab/quickdraw-dataset/" title="QuickDraw">Quickdraw dataset.</a>
       </div>
-      <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>>      
-      Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
+      <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>     
+      >Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
       from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com.</a>
       </div>
     </div>
@@ -315,4 +357,3 @@ class App extends Component {
 }
 
 export default App;
-
