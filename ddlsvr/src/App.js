@@ -12,6 +12,7 @@ class App extends Component {
     height: 400,
     brushRadius: 8,
     lazyRadius: 0,
+    loadimmediate: false,
     model: null,
     metadata: null,
     category_idx: 0,
@@ -27,6 +28,9 @@ class App extends Component {
   ];
 
   img_test = null;
+
+  min_pred_conf = 0.95;
+  min_insert_conf = 0.85;
 
   async loadModel() {
     try {
@@ -82,8 +86,13 @@ class App extends Component {
   async model_predict() {
     /*
     Predicts on canvas data.
+    The confidence of the prediction is determined by a softmax.
+    -> If the confidence is below a threshold, the model's prediction is ignored.
+    Afterwards, the drawing is persisted in a database for delta training.
+    -> This is only done if the confidence is above an insertion threshold.
+    -> If this is not the case, then the drawing is probably nonsense.
     */
-    console.log('Predicting...');
+    console.log('predicting...');
     this.canvas_to_tensor(
       (model, tf_img) => {
         // retrieve prediction data
@@ -93,19 +102,41 @@ class App extends Component {
         // predict on image tensor
         tf_img = tf.expandDims(tf_img, 0);
         const pred_logits = model.predict(tf_img).squeeze();
-        const pred_idx_tf = pred_logits.argMax(0);
-        // output prediction to console -- tensors
-        //console.log(pred_logits.print(true));
-        //console.log(pred_idx_tf.print(true));   
-        // output prediction to console - array
-        const pred_idx = pred_idx_tf.dataSync();
+        const pred_idx = pred_logits.argMax(0).dataSync();
+        const max_logits = pred_logits.max(0).dataSync();
+        //debugging: log logits
+        console.log(pred_logits.print())
+        // check prediction confidence via customized softmax fn
+        var pred_exp = null
+        if (max_logits > 80) {
+          /* note: logits > 80 lead to inf values (float32)
+                   Re-scaling distorts the probabilites, but testing 
+                   showed that it works out for this 3 category demo case. */
+          pred_exp = tf.exp(tf.div(pred_logits,tf.scalar(100))); 
+        } 
+        if (max_logits < 80) {
+          pred_exp = tf.exp(pred_logits);          
+        }  
+        const pred_total = tf.sum(pred_exp)
+        const pred_softmax = tf.div(pred_exp, pred_total)
+        const pred_max_sm = pred_softmax.max(0).dataSync();
+        console.log('softmax output: ' + pred_softmax.dataSync());
+        // set state according to prediciton and confidence
+        if (pred_max_sm > this.min_pred_conf) {
         this.setState({predict_idx: pred_idx});
-        this.setState({predict_valid: true});
-        // log prediction output to console
-        console.log('Prediction is: ' + pred_idx[0]);
-        console.log(this.categories[this.state.predict_idx]);
-        // send to mdlsvr
-        this.handlePredict(cat_idx, pred_idx[0], data_arr);
+        this.setState({predict_valid: true}); 
+        console.log('predicted category: ' + pred_idx[0]);         
+        }
+        else {
+        this.setState({predict_idx: 3});
+        this.setState({predict_valid: true}); 
+        console.log('confidence below threshold!');            
+        }
+        // send data to mdlsvr to persist in database
+        // (only if the confidence level is above threshold)
+        if (pred_max_sm > this.min_insert_conf) {
+          this.handlePredict(cat_idx, pred_idx[0], data_arr);          
+        }
         return pred_idx;
       }
       );
@@ -117,7 +148,7 @@ class App extends Component {
       predict_idx: pred_idx,
       data: img
     });
-    console.log('sent prediction to api');
+    console.log('sent doodle to mdlsvr.');
   };
 
 /*
@@ -143,10 +174,11 @@ class App extends Component {
 
 
       <button
-        onClick={() => {
-          this.saveableCanvas.clear();
-          this.random_choice();
-        }}
+        onClick={async() => {
+          if (this.state.model == null) {
+              await this.loadModel();
+            }}
+        }
       >
         Sure I can!
 
@@ -193,6 +225,7 @@ class App extends Component {
         lazyRadius={this.state.lazyRadius}
         canvasWidth={this.state.width}
         canvasHeight={this.state.height}
+        immediateLoading={this.state.loadimmediate}
       />
 
       <p>
@@ -210,6 +243,7 @@ class App extends Component {
               "savedDrawing",
               this.saveableCanvas.getSaveData()
             );
+        this.setState({loadimmediate: false})
         await this.loadableCanvas.loadSaveData(
             localStorage.getItem("savedDrawing")
           );       
@@ -240,7 +274,8 @@ class App extends Component {
       You: 
       <button
         onClick={ async () => { 
-        if (this.state.model == null) {
+          this.setState({loadimmediate: true})
+          if (this.state.model == null) {
               await this.loadModel();
             }
           this.model_predict();      
@@ -252,6 +287,16 @@ class App extends Component {
 
       <p>
         DoodleAI: This is a {this.categories[this.state.predict_idx]}!
+      </p>
+
+      <p>
+      You: 
+      <button
+        onClick={() => { 
+          }}
+      >
+        Let's play again!
+      </button>
       </p>
 
       <div id="insp" style={{"color": "grey", "fontSize": 8+'px'}}>>
