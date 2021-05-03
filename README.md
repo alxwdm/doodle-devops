@@ -3,6 +3,10 @@ This is an **ML DevOps** demo project that uses a **multi-service** approach for
 
 The key challenge is: Can you draw a cat, dog or mouse so that an AI can recognize it?
 
+<p align="center">
+<img src="https://github.com/alxwdm/doodle-devops/blob/main/doc/drawings.gif" width="300">
+</p>
+
 **Table of contents:**
 * [doodle-devops](#doodle-devops)
 * [A multi-service dockerized ML app](#a-multi-service-dockerized-ML-app)
@@ -23,13 +27,15 @@ Initially, a pre-trained model is provided using the original dataset. The pre-t
 
 # Usage
 
-The easiest way to try it out is to pull the repo, cd into the main directory and run docker-compose.
+The easiest way to try it out is to pull the repo, cd into the main directory and run the development servers via docker-compose.
 ```
 cd doodle-devops
 docker-compose up --build
 ```
 
 After successfully building the images and creating the containers, the website will be available on `http://localhost:3030`.
+
+*Note:* The ddlsvr console message will tell you to access it via `localhost:3000`, but the container does not know that there is an nginx proxy. Make sure to use `localhost:3030`, which is the expected port by nginx. Also, there may be error messages during the startup phase, but as long as all containers are up and running after the startup is completed, this should be no issue.
 
 # About the data and pre-training the model
 

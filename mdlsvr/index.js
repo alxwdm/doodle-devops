@@ -47,17 +47,28 @@ const pgClient = new Pool({
   port: keys.pgPort,
 });
 
+/* 
+Initial connection to Postgres raises duplicate key error
+  --> TODO, see: stackoverflow.com/questions/29900845 & /54351783
+Workaround is to make a PG query during startup.
+Causes the same error but before the first doodle is inserted.
+*/
 pgClient.on("connect", () => {
   pgClient
     .query("CREATE TABLE IF NOT EXISTS \
             doodles (idx INT, pred INT, split VARCHAR(5), \
             insert_date DATE NOT NULL DEFAULT CURRENT_DATE, data NUMERIC[])")
-    .catch((err) => console.log(err));
+    .catch((err) => console.log('CREATE TABLE error (this is expected during startup process)'));
 });
+// this avoids PG error on first insertion (see above)
+try {
+const temp = pgClient.query("SELECT * from doodles LIMIT 1");
+}
+catch {}
 
 // Delta-Training function
 async function delta_train() {
-    // increment insertion counter
+  // increment insertion counter
   insert_cnt = insert_cnt + 1
   console.log("insertion counter is: ", insert_cnt) 
   if (insert_cnt >= train_every) {
@@ -94,8 +105,6 @@ async function update_weights() {
         if (!error) {
           resolve(true);
         }
-        //no need to call the reject here, as it will have been called in the
-        //'error' stream;
       });
     });
   });
@@ -114,7 +123,7 @@ app.post("/api/values/test", (req, res) => {
   console.log("mdlsvr here");
   console.log(index);
 });
-app.post("/api/predict", (req, res) => {
+app.post("/api/predict", async (req, res) => {
   // get prediction results
   const cat_idx = req.body.category_idx;
   const pred_idx = req.body.predict_idx;
@@ -130,11 +139,16 @@ app.post("/api/predict", (req, res) => {
     {
       set_split = "test";
     }
-  // save doodle in database
-  pgClient.query(
+  // save doodle in database (first insertion will cause an error - see above)
+  try {
+  await pgClient.query(
     "INSERT INTO doodles(idx, pred, split, data) VALUES($1, $2, $3, $4)",
     [cat_idx, pred_idx, set_split, data]
     ); 
+  }
+  catch (err) {
+    console.log('INSERT statement failed.')
+  }
   // delta-train if enough new data is available (train_freq) and update model
   delta_train()
 });

@@ -341,7 +341,10 @@ class App extends Component {
       </div>}
 
       <div id="insp" style={{"color": "grey", "fontSize": 8+'px'}}>
-      <br/><br/><br/><br/><br/>
+      <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
+      <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
+      <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
+      <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
       >Project inspired by <a href="https://quickdraw.withgoogle.com/" title="QuickDraw">Google Quickdraw.</a>
       </div>
       <div id="ds" style={{"color": "grey", "fontSize": 8+'px'}}>
