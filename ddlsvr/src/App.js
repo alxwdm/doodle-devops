@@ -339,20 +339,12 @@ class App extends Component {
       </button>
       </p>
       </div>}
-
-      <div id="insp" style={{"color": "grey", "fontSize": 8+'px'}}>
-      <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
-      <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
-      <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
-      <br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/><br/>
-      >Project inspired by <a href="https://quickdraw.withgoogle.com/" title="QuickDraw">Google Quickdraw.</a>
-      </div>
-      <div id="ds" style={{"color": "grey", "fontSize": 8+'px'}}>
-      >Model pre-training was done using the <a href="https://github.com/googlecreativelab/quickdraw-dataset/" title="QuickDraw">Quickdraw dataset.</a>
-      </div>
-      <div id="icon" style={{"color": "grey", "fontSize": 8+'px'}}>     
+      <div id="footer" style={{"color": "grey", "fontSize": 8+'px', 
+      "position": "fixed", "bottom": 0, "width": "100%"}}>
+      >Project inspired by <a href="https://quickdraw.withgoogle.com/" title="QuickDraw">Google Quickdraw.</a><br/>
+      >Model pre-training was done using the <a href="https://github.com/googlecreativelab/quickdraw-dataset/" title="QuickDraw">Quickdraw dataset.</a><br/>  
       >Icon made by <a href="https://www.freepik.com" title="Freepik">Freepik</a> {' '}
-      from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com.</a>
+      from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com.</a><br/>
       </div>
     </div>
   );
