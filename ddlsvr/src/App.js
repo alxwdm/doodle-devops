@@ -199,6 +199,7 @@ class App extends Component {
       <button
         onClick={() => {
           this.random_choice();
+          window.scrollTo(0,document.body.scrollHeight);
         }}
       >
         Give me something else!
@@ -221,6 +222,7 @@ class App extends Component {
         <button
           onClick={() => {
             this.saveableCanvas.clear();
+            window.scrollTo(0,document.body.scrollHeight);
           }}
         >
           Clear
@@ -247,6 +249,7 @@ class App extends Component {
           await this.setState({display_drawing_tools: false})
           await this.setState({disable_drawing: true})
           await this.saveableCanvas.loadSaveData(localStorage.getItem("savedDrawing"))
+          window.scrollTo(0,document.body.scrollHeight);
           }}
         >
           Done
@@ -294,6 +297,7 @@ class App extends Component {
           await this.setState({display_guess_button: false});
           await this.setState({display_guessing: true});
           await this.model_predict();
+          window.scrollTo(0,document.body.scrollHeight);
         }}
       >
         Guess what it is!
@@ -318,7 +322,7 @@ class App extends Component {
       <p>
         DoodleAI: This is a {this.categories[this.state.predict_idx]}!
       </p>
-
+      {window.scrollTo(0,document.body.scrollHeight)}
       <p>
       You: 
       <button
